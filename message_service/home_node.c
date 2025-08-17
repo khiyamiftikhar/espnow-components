@@ -18,6 +18,8 @@ static struct{
     //GEt the mac address of the gate node
     gate_node_id_interface_t* gate_node;
 
+    home_node_handlers_interface callback_handlers;
+
     //user_command_callback callback;
 
 }home_node_service={0};
@@ -94,23 +96,26 @@ static void msg_sent_handler(const uint8_t *mac_addr, bool success){
 
 }
 
-esp_err_t home_node_servive_create(home_node_config_t* config){
+home_node_service_interface* home_node_servive_create(home_node_config_t* config){
 
     if(config==NULL)
-        return ESP_FAIL;
+        return NULL;
     home_node_service.user_interaction=config->user_interaction;
-    home_node_service.user_interaction->user_command_callback=user_command_callback_handler;
+    
     
     home_node_service.msg_interface=config->msg_interface;
-    home_node_service.msg_interface->msgReceivedCallback=msg_received_handler;
-    home_node_service.msg_interface->msgSentCallback=msg_sent_handler;
+    
+    
     home_node_service.gate_node=config->gate_node_id;
     home_node_service.white_list=config->white_list;
 
+    home_node_service.callback_handlers.user_command_callback_handler=user_command_callback_handler;
+    home_node_service.callback_handlers.msg_received_handler=msg_received_handler;
+    home_node_service.callback_handlers.msg_sent_handler=msg_sent_handler;
     
     
     
 
-
-    return ESP_OK;
+    
+    return &home_node_service.callback_handlers;
 }

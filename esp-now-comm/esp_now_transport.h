@@ -69,11 +69,14 @@ typedef struct {
 
 
 typedef struct {
-    
+    /*
     esp_err_t (*set_esp_now_device_discovery_cb)(esp_now_transport_device_discovered_cb_t);        ///< Callback functions
     esp_err_t (*set_esp_now_device_discovery_ack_cb)(esp_now_transport_discovery_ack_cb_t);        ///< Callback functions
     esp_err_t (*set_esp_now_device_data_rcv_cb)(esp_now_transport_data_received_cb_t);        ///< Callback functions
     esp_err_t (*set_esp_now_device_data_sent_cb)(esp_now_transport_send_done_cb_t);        ///< Callback functions
+    
+    */
+    esp_now_transport_callbacks_t callbacks;
     /**
      * @brief Deinitialize ESP-NOW transport
      * 

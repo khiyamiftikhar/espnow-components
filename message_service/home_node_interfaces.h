@@ -24,12 +24,15 @@ typedef enum{
 
 
 
+
+typedef void (*user_command_callback)(user_command_t);
+
 //Wheneven user sends a command the handler inside this must be invoked
 typedef struct{
 
     //When an object of this interface implementation will be created and injected in to the
     //top level source (gate_node and home_node), they will assign their callback handlers to this member
-    void (*user_command_callback)(user_command_t);
+    
     //When reply is  received from the gate
     esp_err_t (*inform_lock_status)(lock_status_t status);
     //When command is succesfully sent

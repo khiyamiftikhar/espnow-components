@@ -7,6 +7,8 @@
 
 
 
+//These are the interfaces that it requires
+
 typedef struct{
     user_interaction_interface_t* user_interaction;
     node_msg_interface_t* msg_interface;
@@ -15,7 +17,21 @@ typedef struct{
 }home_node_config_t;
 
 
-esp_err_t home_node_servive_create(home_node_config_t* config);
+//It is the handlers which it provides to be assigned to the callbacks
+
+
+typedef struct{
+    msgReceivedCallback msg_received_handler;
+    msgSentCallback     msg_sent_handler;
+    user_command_callback user_command_callback_handler;  
+
+}home_node_handlers_interface;
+
+
+typedef home_node_handlers_interface home_node_service_interface;
+
+
+home_node_service_interface* home_node_servive_create(home_node_config_t* config);
 
 
 

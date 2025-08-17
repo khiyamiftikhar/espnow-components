@@ -17,16 +17,20 @@ typedef enum{
 
 
 
-typedef struct{
-    //When an object of this interface implementation will be created and injected in to the
+//These are the callbacks for which it provides the handlers
+//When an object of this interface implementation will be created and injected in to the
     //top level source (gate_node and home_node), they will assign their callback handlers to this member
     //Callback invokked when msg received through espnow
-    void (*msgReceivedCallback)(const uint8_t *mac_addr, const uint8_t *data, size_t len);
+typedef void (*msgReceivedCallback)(const uint8_t *mac_addr, const uint8_t *data, size_t len);
     //Callback invoked when message sent successfullt
     //destination mac address
-    void (*msgSentCallback)(const uint8_t *mac_addr, bool success);
+typedef void (*msgSentCallback)(const uint8_t *mac_addr, bool success);
     //send message through espnow
-    esp_err_t  (*send_msg)(const uint8_t *mac_addr, const uint8_t *data, size_t len);
+
+//This is the method which the home_node or gate_node component requires
+typedef struct{
+    
+    esp_err_t (*send_msg)(const uint8_t *mac_addr, const uint8_t *data, size_t len);
    
 }node_msg_interface_t;
 

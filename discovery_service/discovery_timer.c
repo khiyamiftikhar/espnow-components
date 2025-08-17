@@ -10,15 +10,15 @@ static struct{
 
     uint32_t duration;
     TimerHandle_t timer;    
-    discovery_timer_callback cb;    
-    discovery_timer_interface_t timer_interface;
+    //discovery_timer_callback cb;    
+    discovery_timer_implementation_t timer_interface;
 
 }discovery_timer={0};   
 
 
 //Call the registered callback
 static void discovery_timer_callback_handler(TimerHandle_t timer){
-    discovery_timer.cb;
+    discovery_timer.timer_interface.callback_handler();
 }
 
 
@@ -55,7 +55,7 @@ static uint32_t get_current_time(){
 
 
 
-discovery_timer_interface_t* timer_create(uint32_t duration_ms){
+discovery_timer_implementation_t* timer_create(uint32_t duration_ms){
 
     discovery_timer.timer = xTimerCreate(
         "discovery_timer",
@@ -70,10 +70,10 @@ discovery_timer_interface_t* timer_create(uint32_t duration_ms){
         
         return NULL;
     }
-    discovery_timer.timer_interface.start_timer=start_timer;
-    discovery_timer.timer_interface.stop_timer=stop_timer;
-    discovery_timer.timer_interface.register_callback=register_callback;
-    discovery_timer.timer_interface.get_current_time=get_current_time;
+    discovery_timer.timer_interface.methods.start_timer=start_timer;
+    discovery_timer.timer_interface.methods.stop_timer=stop_timer;
+    //discovery_timer.timer_interface.register_callback=register_callback;
+    discovery_timer.timer_interface.methods.get_current_time=get_current_time;
     ESP_LOGI(TAG,"timer done");
     return &discovery_timer.timer_interface;
 

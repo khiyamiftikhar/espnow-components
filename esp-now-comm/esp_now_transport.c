@@ -42,7 +42,7 @@ static struct {
     //uint8_t total_discovery_attempts;        //How many times tried to send broadcast message
 //    uint8_t discovery_attempt_count;
     esp_now_trasnsport_interface_t interface;
-    esp_now_transport_callbacks_t callbacks;
+    //esp_now_transport_callbacks_t callbacks;
 } esp_now_state = {0};
 
 // Forward declarations
@@ -333,7 +333,7 @@ static void discovery_timer_callback(TimerHandle_t timer)
     }
 }*/
 
-
+/*
 esp_err_t set_esp_now_device_discovery_cb(esp_now_transport_device_discovered_cb_t cb){
 
     if(cb!=NULL)
@@ -356,7 +356,7 @@ esp_err_t set_esp_now_device_data_sent_cb(esp_now_transport_send_done_cb_t cb){
     return 0;
 }
 
-
+*/
 
 
 
