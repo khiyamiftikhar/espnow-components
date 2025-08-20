@@ -10,7 +10,7 @@ static const char* TAG="home node";
 static struct{
     
     //when the user sends command , and when it is desired to send user the status of lock
-    user_interaction_interface_t* user_interaction;
+    user_output_interface_t* user_interaction;
     //The common interface and data types between the gate node and home node, to send and recive data using espnow
     node_msg_interface_t* msg_interface;
     //check whether the sender is whitelisted
@@ -96,11 +96,11 @@ static void msg_sent_handler(const uint8_t *mac_addr, bool success){
 
 }
 
-home_node_service_interface* home_node_servive_create(home_node_config_t* config){
+home_node_service_interface* home_node_service_create(home_node_config_t* config){
 
     if(config==NULL)
         return NULL;
-    home_node_service.user_interaction=config->user_interaction;
+    home_node_service.user_interaction=config->user_output;
     
     
     home_node_service.msg_interface=config->msg_interface;

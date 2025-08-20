@@ -12,6 +12,7 @@ static struct {
     node_msg_interface_t* msg;
     node_white_list_interface_t* list;
     gate_node_lock_interface_t* lock;
+    gate_node_callback_handlers_t callback_handlers;
 }gate_node={0};
 
 
@@ -82,6 +83,7 @@ static void handle_command_message(const uint8_t *mac_addr, const lock_system_me
  * Call this from your ESP-NOW receive callback
  */
 static void process_lock_message(const uint8_t *mac_addr, const lock_system_message_t *msg) {
+    ESP_LOGI(TAG,"process received");
     if (!msg || !mac_addr) {
         ESP_LOGE(TAG, "Invalid parameters");
         return;
@@ -109,33 +111,51 @@ static void process_lock_message(const uint8_t *mac_addr, const lock_system_mess
 
 
 static void msg_received_handler(const uint8_t* mac,const uint8_t* msg, size_t length ){
+    
+    //ESP_LOGI(TAG,"in received");
     if(msg==NULL || mac==NULL)
         return;
-    
-    //If the node is not a peer then
-    if(gate_node.list->is_in_whitelist(mac)!=true)
+    //ESP_LOGI(TAG,"before list check");
+    if(gate_node.list==NULL){
+        ESP_LOGI(TAG,"no list");
         return;
-
+    }
+    //ESP_LOGI(TAG,"before list method check");
+    if(gate_node.list->is_in_whitelist==NULL){
+        ESP_LOGI(TAG,"no list method");
+        return;
+    }
+    //If the node is not a peer then
+    //ESP_LOGI(TAG,"before mac check");
+    if(gate_node.list->is_in_whitelist(mac)!=true){
+        ESP_LOGI(TAG,"not in list");
+        return;
+    }
+    //ESP_LOGI(TAG,"after mac check");
     if (length == sizeof(lock_system_message_t)) {
         lock_system_message_t *message = (lock_system_message_t*) msg;
         process_lock_message(mac,message);
+
     }
 
 }
 
 
-esp_err_t gate_node_init(gate_node_config_t* config){
+gate_node_service_interface_t* gate_node_init(gate_node_config_t* config){
 
     if(config==NULL)
-        return ESP_FAIL;
+        return NULL;
     
     gate_node.list=config->list;
     gate_node.lock=config->lock;
     gate_node.msg=config->msg;
-    gate_node.msg->msgReceivedCallback=msg_received_handler;
+    
+    ESP_LOGI(TAG,"check in gate service init %d",gate_node.list->is_in_whitelist(NULL));
+    gate_node.callback_handlers.msg_received_handler=msg_received_handler;
+
 
     //The msg sent call back handler does not make sense at the gate node
     //because the gate node does not require confirmation 
 
-    return ESP_OK;
+    return &gate_node.callback_handlers;
 }

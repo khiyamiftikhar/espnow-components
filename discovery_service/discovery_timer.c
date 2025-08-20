@@ -70,6 +70,7 @@ discovery_timer_implementation_t* timer_create(uint32_t duration_ms){
         
         return NULL;
     }
+    ESP_LOGI(TAG,"timer done before interface assign");
     discovery_timer.timer_interface.methods.start_timer=start_timer;
     discovery_timer.timer_interface.methods.stop_timer=stop_timer;
     //discovery_timer.timer_interface.register_callback=register_callback;

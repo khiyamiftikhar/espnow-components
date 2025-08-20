@@ -1,6 +1,7 @@
 
+#include "esp_log.h"
 #include "espnow_discovery.h"
-
+#include "inttypes.h"
 
 #define         DISCOVERY_DURATION          5000    //ms
 
@@ -12,7 +13,7 @@ static struct{
     uint32_t discovery_duration;            //milliseconds
     ///Interval between each discoovery broadcast. Must be less than discovery_duration
     uint32_t discovery_interval;             //milliseconds
-    uint32_t current_time;
+    uint32_t discovery_start_time;
     //These are the interfaces that it uses and are injected to it
     discovery_comm_interface_t* message_interface;
     discovery_whitelist_interface_t* whitelist;
@@ -61,10 +62,11 @@ static  void timer_elapsed_handler(){
 
     //Stop the discovery
     uint32_t current_time=discovery_service.timer->get_current_time();
-    uint32_t previous_time=discovery_service.current_time;
+    uint32_t discovery_start_time=discovery_service.discovery_start_time;
     uint32_t duration=discovery_service.discovery_duration;
     //If time passed is less than the discovery duration than 
-    if(current_time-previous_time<duration){
+ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "duration%"PRIu32, current_time, discovery_start_time,duration); 
+   if((current_time-discovery_start_time)<duration){
         //Again send discovery broadcast message
         discovery_service.message_interface->send_discovery();
     }
@@ -80,9 +82,10 @@ void start_discovery(){
         //start discovery
         discovery_service.message_interface->send_discovery();
         //start timer
+        ESP_LOGI(TAG,"timer interval %"PRIu32,discovery_service.discovery_interval);
         discovery_service.timer->start_timer(discovery_service.discovery_interval);
         //Get current time and save it in the state
-        discovery_service.current_time=discovery_service.timer->get_current_time();
+        discovery_service.discovery_start_time=discovery_service.timer->get_current_time();
     
     }
 
@@ -107,6 +110,7 @@ discovery_service_interface_t* discovery_service_init(config_espnow_discovery* c
     discovery_service.timer=config->timer;
     discovery_service.discovery_duration=config->discovery_duration;
     discovery_service.discovery_interval=config->discovery_interval;
+    
     
 
     //Right now it is only invokd once. in future the button interface will be useed

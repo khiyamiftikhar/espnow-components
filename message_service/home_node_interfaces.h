@@ -38,7 +38,7 @@ typedef struct{
     //When command is succesfully sent
     esp_err_t (*inform_command_status)(bool success);  
 
-}user_interaction_interface_t;
+}user_output_interface_t;
 
 
 

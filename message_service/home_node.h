@@ -10,7 +10,7 @@
 //These are the interfaces that it requires
 
 typedef struct{
-    user_interaction_interface_t* user_interaction;
+    user_output_interface_t* user_output;
     node_msg_interface_t* msg_interface;
     node_white_list_interface_t* white_list;
     gate_node_id_interface_t* gate_node_id;
@@ -31,7 +31,7 @@ typedef struct{
 typedef home_node_handlers_interface home_node_service_interface;
 
 
-home_node_service_interface* home_node_servive_create(home_node_config_t* config);
+home_node_service_interface* home_node_service_create(home_node_config_t* config);
 
 
 

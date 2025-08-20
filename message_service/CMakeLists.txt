@@ -1,2 +1,2 @@
-idf_component_register(SRCS  home_node.c
+idf_component_register(SRCS  home_node.c gate_node.c
                         INCLUDE_DIRS .)

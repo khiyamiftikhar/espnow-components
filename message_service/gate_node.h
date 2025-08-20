@@ -52,7 +52,16 @@ typedef struct {
 }gate_node_config_t;
 
 
-esp_err_t gate_node_init(gate_node_config_t* config);
+
+typedef struct{
+    msgReceivedCallback msg_received_handler;
+    //msgSentCallback     msg_sent_handler;     //not required for gate node
+
+}gate_node_callback_handlers_t;
+
+typedef gate_node_callback_handlers_t gate_node_service_interface_t;
+
+gate_node_service_interface_t* gate_node_init(gate_node_config_t* config);
 
 
 #endif
