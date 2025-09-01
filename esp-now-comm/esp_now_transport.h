@@ -77,13 +77,7 @@ typedef struct {
     
     */
     esp_now_transport_callbacks_t callbacks;
-    /**
-     * @brief Deinitialize ESP-NOW transport
-     * 
-     * @return ESP_OK on success
-     */
-    esp_err_t (*esp_now_transport_deinit)(void);
-
+    
     /**
      * @brief Start device discovery broadcasting
      * 
@@ -162,6 +156,15 @@ typedef struct {
  * @return ESP_OK on success
  */
 esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_config_t *config);
+
+/**
+     * @brief Deinitialize ESP-NOW transport
+     * 
+     * @return ESP_OK on success
+     */
+esp_err_t esp_now_transport_deinit(void);
+
+
 
 
 

@@ -51,7 +51,7 @@ static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
 //static void discovery_timer_callback(TimerHandle_t timer);
 
 
-static esp_err_t esp_now_transport_deinit(void)
+esp_err_t esp_now_transport_deinit(void)
 {
     if (!esp_now_state.initialized) {
         return ESP_ERR_INVALID_STATE;
@@ -143,9 +143,11 @@ static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint
         return ESP_ERR_INVALID_SIZE;
     }
 
+    
     // Check if peer exists - application must add peers explicitly
     if (!esp_now_is_peer_exist(mac_addr)) {
         ESP_LOGE(TAG, "Peer " MACSTR " not found. Add peer first.", MAC2STR(mac_addr));
+        
         return ESP_ERR_ESPNOW_NOT_FOUND;
     }
 
@@ -360,6 +362,7 @@ esp_err_t set_esp_now_device_data_sent_cb(esp_now_transport_send_done_cb_t cb){
 
 
 
+
 esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_config_t *config)
 {
     if (esp_now_state.initialized) {
@@ -416,7 +419,7 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     //esp_now_state.discovery_interval_ms = config->discovery_interval_ms;
     //esp_now_state.interface.callbacks = config->callbacks;
     esp_now_state.interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
-    esp_now_state.interface.esp_now_transport_deinit=esp_now_transport_deinit;
+    //esp_now_state.interface.esp_now_transport_deinit=esp_now_transport_deinit;
     esp_now_state.interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
     esp_now_state.interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
     esp_now_state.interface.esp_now_transport_send_data=esp_now_transport_send_data;
