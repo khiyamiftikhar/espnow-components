@@ -25,7 +25,7 @@ typedef enum{
 
 
 
-typedef void (*user_command_callback)(user_command_t);
+typedef esp_err_t (*user_command_callback)(user_command_t);
 
 //Wheneven user sends a command the handler inside this must be invoked
 typedef struct{
