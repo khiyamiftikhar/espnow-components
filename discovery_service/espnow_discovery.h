@@ -18,6 +18,10 @@ typedef struct{
         esp_err_t (*acknowledge_the_discovery)(const uint8_t *mac_addr);
         
         esp_err_t (*add_peer)(const uint8_t *mac_addr);
+        
+        bool (*is_peer_exist)(const uint8_t *mac_addr);
+        //Does not fit in this because it is th odd one. but has to be added so that it must inform on discovery completion
+        void (*process_discovery_completion_callback)(uint8_t total_devices_found);
 }discovery_comm_interface_t;
 
         
@@ -47,12 +51,10 @@ typedef struct{
 
 //These are the interface it returns , so that the invokers must be assigned to it
 typedef struct {
-//Get informed on incoming discovery request
+        //Get informed on incoming discovery request
         void (*process_discovery_callback)(const uint8_t *mac_addr);
-        
-        //GEt informed when the discovery is acknowledged so that discovery is stopped
+        //Get informed when the discovery is acknowledged so that discovery is stopped
         void (*process_discovery_acknowledgement_callback)(const uint8_t *mac_addr);
-
 }discovery_comm_callback_handler_interface_t;
 
 /*To trigger the starting of discovery*/
@@ -70,6 +72,7 @@ typedef struct{
         discovery_comm_callback_handler_interface_t  comm_callback_handler;
         discovery_input_callback_handler_interface_t input_callback_handler;
         discovery_timer_callback_handler_t  timer_callback_handler;
+        
 }discovery_callback_handler_t;
 
 typedef discovery_callback_handler_t discovery_service_interface_t;
