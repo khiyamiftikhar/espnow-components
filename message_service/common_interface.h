@@ -12,6 +12,8 @@ typedef enum{
     LOCK_STATUS_CLOSED,
     LOCK_STATUS_OPENING,
     LOCK_STATUS_CLOSING,
+    LOCK_STATUS_CLOSED_IDLE,    //These new states added for automotive lock actuator
+    LOCK_STATUS_OPENDED_IDLE,
 
 }lock_system_lock_status_t;
 
