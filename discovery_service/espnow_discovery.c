@@ -99,7 +99,7 @@ static  void timer_elapsed_handler(){
     uint32_t discovery_start_time=discovery_service.discovery_start_time;
     uint32_t duration=discovery_service.discovery_duration;
     //If time passed is less than the discovery duration than 
-    ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "duration%"PRIu32, current_time, discovery_start_time,duration); 
+    ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "current duration%"PRIu32 "total duration%"PRIu32, current_time, discovery_start_time,(current_time-discovery_start_time),duration); 
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     BaseType_t notify_result;
@@ -179,8 +179,9 @@ static void discovery_task(void* args){
                 discovery_service.message_interface->send_discovery();
             else{
                 stop_discovery();
+                
                 if(discovery_service.message_interface->process_discovery_completion_callback!=NULL){
-                    //Call the callback with 
+                    ESP_LOGI(TAG,"discovery over");
                     discovery_service.message_interface->process_discovery_completion_callback(discovery_service.discovery_result.result_count);
                 }
             }
