@@ -1,10 +1,11 @@
-
+#include "string.h"
 #include "home_node.h"
 #include "message_def.h" 
 #include "esp_log.h"
 
 static const char* TAG="home node";
 
+static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
 static struct{
@@ -25,7 +26,7 @@ static struct{
 }home_node_service={0};
 
 
-static void send_command(const uint8_t *mac_addr, lock_system_message_type_t msg_type,lock_system_command_type_t cmd) {
+static esp_err_t send_command(const uint8_t *mac_addr, lock_system_message_type_t msg_type,lock_system_command_type_t cmd) {
 
 
     lock_system_message_t cmd_msg = {
@@ -34,38 +35,40 @@ static void send_command(const uint8_t *mac_addr, lock_system_message_type_t msg
         .lock_status = 0        //Not used
     };
 
+    esp_err_t ret=0;
+    ret= home_node_service.msg_interface->send_msg(mac_addr,(uint8_t*)&cmd_msg,sizeof(cmd_msg));
 
-    home_node_service.msg_interface->send_msg(mac_addr,(uint8_t*)&cmd_msg,sizeof(cmd_msg));
-
+    ESP_LOGI(TAG,"sent command success %d",ret);
+    return ret;
 
 }
 
 
-static void user_command_callback_handler(user_command_t cmd){
+static esp_err_t user_command_callback_handler(user_command_t cmd){
     
     uint8_t gate_node_mac_addr[6];
     home_node_service.gate_node->get_gate_node_mac(gate_node_mac_addr);
-    
+    esp_err_t ret;
     switch (cmd){
         case USER_COMMAND_LOCK_OPEN:
-            send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_OPEN_LOCK);
+            ret=send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_OPEN_LOCK);
             break;
 
 
         case USER_COMMAND_LOCK_CLOSE:
-            send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_CLOSE_LOCK);
+            ret=send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_CLOSE_LOCK);
             break;
 
         case USER_COMMAND_LOCK_STATUS:
-            send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_LOCK_STATUS);
+            ret=send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_LOCK_STATUS);
             break;
         default:
-            send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_LOCK_STATUS);
+            ret=send_command(gate_node_mac_addr,MSG_TYPE_COMMAD,LOCK_SYSTEM_COMMAND_LOCK_STATUS);
             break;
 
     }
 
-
+    return ret;
 
 }
 
@@ -91,8 +94,12 @@ static void msg_received_handler(const uint8_t *mac_addr, const uint8_t *data, s
 
 static void msg_sent_handler(const uint8_t *mac_addr, bool success){
 
-    ESP_LOGI(TAG,"hello came in sending");
-    home_node_service.user_interaction->inform_command_status(success);
+    ESP_LOGI(TAG,"hello came in send handler %d",success);
+    
+    //Only inform about the send status if it is not a broadcast
+    if(memcmp(mac_addr,BROADCAST_MAC,sizeof(BROADCAST_MAC))!=0){
+        home_node_service.user_interaction->inform_command_status(success);
+    }
 
 }
 
