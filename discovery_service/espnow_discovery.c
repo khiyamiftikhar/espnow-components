@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "espnow_discovery.h"
 #include "inttypes.h"
+#include "event_system_adapter.h"
 
 #define         DISCOVERY_DURATION          5000    //ms
 #define         DISCOVERY_MAX_DEVICES       5
@@ -42,6 +43,8 @@ static struct{
 }discovery_service={0};
 
 
+//This macro defined in the event_system_adapter_object creates custom apis with this name appended
+DEFINE_EVENT_ADAPTER(DISCOVERY_SERVICE);
 
 
 /// @brief Will be invoked when there is some incoming discovery packet
@@ -180,10 +183,11 @@ static void discovery_task(void* args){
             else{
                 stop_discovery();
                 
-                if(discovery_service.message_interface->process_discovery_completion_callback!=NULL){
+                //if(discovery_service.message_interface->process_discovery_completion_callback!=NULL){
                     ESP_LOGI(TAG,"discovery over");
-                    discovery_service.message_interface->process_discovery_completion_callback(discovery_service.discovery_result.result_count);
-                }
+                    DISCOVERY_SERVICE_post_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,(void*)&discovery_service.discovery_result.result_count,sizeof(discovery_service.discovery_result.result_count));
+                  //  discovery_service.message_interface->process_discovery_completion_callback(discovery_service.discovery_result.result_count);
+                //}
             }
         }
     }
@@ -201,6 +205,9 @@ discovery_service_interface_t* discovery_service_init(config_espnow_discovery* c
     BaseType_t ret=xTaskCreate(discovery_task,"discovery task",4096,NULL,5,&discovery_service.discovery_task);
 
     ESP_ERROR_CHECK(ret!=1);
+
+    //Register the discovery completion
+    DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL);
 
     discovery_service.message_interface=config->discovery;
     

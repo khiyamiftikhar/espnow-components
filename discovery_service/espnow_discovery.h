@@ -4,9 +4,23 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "esp_err.h"
+#include "event_system_adapter.h"
 #include "discovery_timer_interface.h"
 
 
+
+DECLARE_EVENT_ADAPTER(DISCOVERY_SERVICE);
+//The below is  equivalent 
+//ESP_EVENT_DECLARE_BASE(MY_MODULE_NAME_ROUTINE_EVENT_BASE);
+//extern const char* const DISCOVERY_SERVICE_ROUTINE_EVENT_BASE;
+//The below is  equivalent 
+//ESP_EVENT_DECLARE_BASE(MY_MODULE_NAME_EXCEPTION_EVENT_BASE);
+//extern const char* const DISCOVERY_SERVICE_EXCEPTION_EVENT_BASE;
+
+
+
+//The events related to discovery
+#define   DISCOVERY_EVENT_DISCOVERY_COMPLETE            1
 
 /*These are the interfaces which it requires, i.e its dependecies*/
 typedef struct{
