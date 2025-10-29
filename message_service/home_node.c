@@ -11,7 +11,7 @@ static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static struct{
     
     //when the user sends command , and when it is desired to send user the status of lock
-    user_output_interface_t* user_interaction;
+    
     //The common interface and data types between the gate node and home node, to send and recive data using espnow
     node_msg_interface_t* msg_interface;
     //check whether the sender is whitelisted
@@ -19,7 +19,7 @@ static struct{
     //GEt the mac address of the gate node
     gate_node_id_interface_t* gate_node;
 
-    home_node_handlers_interface callback_handlers;
+    
 
     //user_command_callback callback;
 
@@ -44,7 +44,7 @@ static esp_err_t send_command(const uint8_t *mac_addr, lock_system_message_type_
 }
 
 
-static esp_err_t user_command_callback_handler(user_command_t cmd){
+esp_err_t home_node_send_command(user_command_t cmd){
     
     uint8_t gate_node_mac_addr[6];
     home_node_service.gate_node->get_gate_node_mac(gate_node_mac_addr);
@@ -89,7 +89,7 @@ static void msg_received_handler(const uint8_t *mac_addr, const uint8_t *data, s
     lock_status_t lock_status=msg->lock_status;
 
     //Inform the user about current status of the lock
-    home_node_service.user_interaction->inform_lock_status(lock_status);
+    //home_node_service.user_interaction->inform_lock_status(lock_status);
 }
 
 static void msg_sent_handler(const uint8_t *mac_addr, bool success){
@@ -98,15 +98,15 @@ static void msg_sent_handler(const uint8_t *mac_addr, bool success){
     
     //Only inform about the send status if it is not a broadcast
     if(memcmp(mac_addr,BROADCAST_MAC,sizeof(BROADCAST_MAC))!=0){
-        home_node_service.user_interaction->inform_command_status(success);
+      //  home_node_service.user_interaction->inform_command_status(success);
     }
 
 }
 
-home_node_service_interface* home_node_service_create(home_node_config_t* config){
+esp_err_t home_node_service_create(home_node_config_t* config){
 
     if(config==NULL)
-        return NULL;
+        return ESP_FAIL;
     home_node_service.user_interaction=config->user_output;
     
     
@@ -116,13 +116,11 @@ home_node_service_interface* home_node_service_create(home_node_config_t* config
     home_node_service.gate_node=config->gate_node_id;
     home_node_service.white_list=config->white_list;
 
-    home_node_service.callback_handlers.user_command_callback_handler=user_command_callback_handler;
-    home_node_service.callback_handlers.msg_received_handler=msg_received_handler;
-    home_node_service.callback_handlers.msg_sent_handler=msg_sent_handler;
+    
     
     
     
 
     
-    return &home_node_service.callback_handlers;
+    return ESP_OK;
 }
