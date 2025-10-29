@@ -16,6 +16,8 @@ static const char *TAG = "ESP_NOW_TRANSPORT";
 // Broadcast MAC address for discovery
 static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+DEFINE_EVENT_ADAPTER(ESPNOW_TRANSPORT);
+
 // Message types
 typedef enum {
     MSG_TYPE_DISCOVERY_BROADCAST = 0x01,
@@ -49,6 +51,7 @@ static struct {
 static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
 static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status);
 //static void discovery_timer_callback(TimerHandle_t timer);
+
 
 
 esp_err_t esp_now_transport_deinit(void)
@@ -152,7 +155,7 @@ static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint
     }
 
     // Use static allocation for message
-    static uint8_t msg_buffer[sizeof(esp_now_internal_msg_t) + ESP_NOW_TRANSPORT_MAX_DATA_LEN];
+    uint8_t msg_buffer[sizeof(esp_now_internal_msg_t) + ESP_NOW_TRANSPORT_MAX_DATA_LEN];
     esp_now_internal_msg_t *msg = (esp_now_internal_msg_t*)msg_buffer;
 
     msg->type = MSG_TYPE_DATA;
@@ -162,6 +165,7 @@ static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint
     msg->crc = esp_crc32_le(0, msg->payload, len);
 
     size_t msg_size = sizeof(esp_now_internal_msg_t) + len;
+    //IT is assumed that the library copies to internal buffer
     esp_err_t ret = esp_now_send(mac_addr, msg_buffer, msg_size);
 
     if (ret != ESP_OK) {
@@ -259,30 +263,36 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
         case MSG_TYPE_DISCOVERY_BROADCAST:
             ESP_LOGI(TAG, "Received discovery broadcast from " MACSTR, MAC2STR(msg->src_mac));
             
-            
             // Notify application - let it decide whether to add peer
-            if (esp_now_state.interface.callbacks.on_device_discovered) {
-                esp_now_state.interface.callbacks.on_device_discovered(msg->src_mac);
-            }
+            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,msg->src_mac,sizeof(msg->src_mac));
             break;
+            
 
         case MSG_TYPE_DISCOVERY_ACK:
             ESP_LOGI(TAG, "Received discovery ACK from " MACSTR, MAC2STR(msg->src_mac));
-            
+            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,msg->src_mac,sizeof(msg->src_mac));
             // Don't add peer automatically - let application decide
             // Notify application that we were discovered by this device
-            if (esp_now_state.interface.callbacks.on_discovery_ack) {
-                esp_now_state.interface.callbacks.on_discovery_ack(msg->src_mac);
-            }
             break;
 
         case MSG_TYPE_DATA:
             ESP_LOGD(TAG, "Received data from " MACSTR, MAC2STR(msg->src_mac));
             
             // Notify application
-            if (esp_now_state.interface.callbacks.on_data_received) {
-                esp_now_state.interface.callbacks.on_data_received(msg->src_mac, msg->payload, msg->payload_len);
-            }
+            uint8_t payload_length=msg->payload_len;
+            //Variable Length Array
+            uint8_t msg_buffer[sizeof(espnow_msg_recv_t) + ESP_NOW_TRANSPORT_MAX_DATA_LEN];
+
+            espnow_msg_recv_t* message=(espnow_msg_recv_t*)msg_buffer;
+
+            memcpy(message->payload,msg->payload,msg->payload_len);
+            memcpy(message->src_mac,msg->src_mac,sizeof(message->src_mac));
+            message->payload_len=msg->payload_len;
+
+            
+            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,message,sizeof(msg_buffer));
+            esp_now_state.interface.callbacks.on_data_received(msg->src_mac, msg->payload, msg->payload_len);
+            
             break;
 
         default:
@@ -293,16 +303,22 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
 
 static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
+    bool success=false;
     if (status == ESP_NOW_SEND_SUCCESS) {
+        success=true;
         ESP_LOGI(TAG, "Send success to " MACSTR "", MAC2STR(mac_addr));
     } else {
         ESP_LOGI(TAG, "Send failed to " MACSTR"", MAC2STR(mac_addr));
     }
 
     // Notify application if callback is set
-    if (esp_now_state.interface.callbacks.on_send_done) {
-        esp_now_state.interface.callbacks.on_send_done(mac_addr, status == ESP_NOW_SEND_SUCCESS);
-    }
+    
+    espnow_msg_sent_status_t msg;
+    msg.success=success;
+    memcpy(msg.dest_mac,mac_addr,sizeof(msg.dest_mac));
+    ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,&msg,sizeof(espnow_msg_sent_status_t));
+
+    
 }
 
 /*
@@ -428,7 +444,13 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     //esp_now_state.interface.esp_now_transport_stop_discovery=esp_now_transport_stop_discovery;
 
 
+    //Earlier this was accomplised using callbacks
+    //Now this source posts events
 
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,NULL);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,NULL);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,NULL);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,NULL);
     // Create discovery timer
     /*
     esp_now_state.discovery_timer = xTimerCreate(

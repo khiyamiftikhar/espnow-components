@@ -57,41 +57,27 @@ typedef struct{
         uint32_t discovery_interval;             //mircoseconds
         discovery_comm_interface_t* discovery;
         discovery_whitelist_interface_t* whitelist;
-        discovery_timer_interface_t* timer;
-
+      
 }config_espnow_discovery;
 
 
 
-//These are the interface it returns , so that the invokers must be assigned to it
-typedef struct {
-        //Get informed on incoming discovery request
-        void (*process_discovery_callback)(const uint8_t *mac_addr);
-        //Get informed when the discovery is acknowledged so that discovery is stopped
-        void (*process_discovery_acknowledgement_callback)(const uint8_t *mac_addr);
-}discovery_comm_callback_handler_interface_t;
 
-/*To trigger the starting of discovery*/
-typedef struct{
+typedef enum{
+        DISCOVERY_EVENT_DISCOVERY_MESSAGE_ARRIVED=0,
+        DISCOVERY_EVENT_DISCOVERY_MESSAGE_ACK_ARRIVED,
 
-        void(*button_event_callback)(); //Called when button is pressed
+}discovery_events_t;
 
-}discovery_input_callback_handler_interface_t;
 
-typedef struct{
-        discovery_timer_callback timer_handler;
-}discovery_timer_callback_handler_t;
 
-typedef struct{
-        discovery_comm_callback_handler_interface_t  comm_callback_handler;
-        discovery_input_callback_handler_interface_t input_callback_handler;
-        discovery_timer_callback_handler_t  timer_callback_handler;
-        
-}discovery_callback_handler_t;
 
-typedef discovery_callback_handler_t discovery_service_interface_t;
+/// @brief Handles the above enum evens
+/// @param event 
+/// @param src_mac 
+void discovery_events_handler(discovery_events_t event,uint8_t* src_mac);
 
-discovery_service_interface_t* discovery_service_init(config_espnow_discovery* config);
+esp_err_t discovery_service_init(config_espnow_discovery* config);
 
 //Now publically available
 //Earlier called witjhin discovery_init, but causing crashes because discovery

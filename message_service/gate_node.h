@@ -20,12 +20,13 @@ This source has following purposes
 
 #include "esp_err.h"
 #include "stdbool.h"
+#include "event_system_adapter.h"
 #include "common_interface.h"
 
 //#include "esp_now_transport.h"
 
 
-
+DECLARE_EVENT_ADAPTER(GATE_NODE);
 
 
 
@@ -53,15 +54,11 @@ typedef struct {
 
 
 
-typedef struct{
-    msgReceivedCallback msg_received_handler;
-    //msgSentCallback     msg_sent_handler;     //not required for gate node
 
-}gate_node_callback_handlers_t;
+void gate_message_received_handler(const uint8_t *mac_addr, const uint8_t *data, size_t len);
 
-typedef gate_node_callback_handlers_t gate_node_service_interface_t;
 
-gate_node_service_interface_t* gate_node_init(gate_node_config_t* config);
+esp_err_t gate_node_init(gate_node_config_t* config);
 
 
 #endif
