@@ -226,7 +226,7 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
         return ESP_FAIL;
 
 
-    discovery_timer_implementation_t* timer_interface=timer_create(DISCOVERY_INTERVAL);
+    discovery_timer_implementation_t* timer_interface=timer_create(config->discovery_interval);
 
     discovery_service.timer=&timer_interface->methods;
     timer_interface->callback_handler=timer_elapsed_handler;
