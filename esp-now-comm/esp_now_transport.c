@@ -57,6 +57,7 @@ static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
 esp_err_t esp_now_transport_deinit(void)
 {
     if (!esp_now_state.initialized) {
+        ESP_LOGI(TAG,"returning without deinit");
         return ESP_ERR_INVALID_STATE;
     }
 
