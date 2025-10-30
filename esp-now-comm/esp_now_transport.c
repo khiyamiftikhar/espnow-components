@@ -70,6 +70,11 @@ esp_err_t esp_now_transport_deinit(void)
     */
     esp_now_deinit();
     esp_now_state.initialized = false;
+
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,NULL);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING);
     
     ESP_LOGI(TAG, "ESP-NOW transport deinitialized");
     return ESP_OK;
