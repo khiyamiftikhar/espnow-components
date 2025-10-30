@@ -238,10 +238,13 @@ static esp_err_t esp_now_transport_send_discovery_ack(const uint8_t* mac){
 // Internal callback functions
 static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
 {
+
+    ESP_LOGI(TAG,"received");
     if (!recv_info || !data || len < sizeof(esp_now_internal_msg_t)) {
         return;
     }
 
+    ESP_LOGI(TAG,"received not returned early");
     esp_now_internal_msg_t *msg = (esp_now_internal_msg_t*)data;
     
     // Validate message
@@ -249,6 +252,7 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
         ESP_LOGW(TAG, "Invalid message length");
         return;
     }
+    
 
     // Only validate CRC for data messages (discovery messages have CRC = 0)
     if (msg->type == MSG_TYPE_DATA && msg->payload_len > 0) {
