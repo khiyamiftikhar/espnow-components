@@ -79,7 +79,7 @@ static void discovery_acknowledgement_handler(const uint8_t *mac_addr){
     memcpy(discovery_service.discovery_result.devices->mac,mac_addr,6);
     discovery_service.discovery_result.result_count++;
     if(discovery_service.whitelist->is_white_listed(mac_addr)==true){
-            //if yes then add as peer
+            ESP_LOGI(TAG,"yess added");
             discovery_service.message_interface->add_peer(mac_addr);
     }
 
@@ -109,6 +109,7 @@ void discovery_events_handler(discovery_events_t event,uint8_t* src_mac){
 
 
 static void stop_discovery(){
+    ESP_LOGI(TAG,"stopping discovery");
     discovery_service.timer->stop_timer();
     //Must be guarded with a mutex lock
     discovery_service.discovery_state=false;
@@ -123,7 +124,7 @@ static  void timer_elapsed_handler(){
     uint32_t discovery_start_time=discovery_service.discovery_start_time;
     uint32_t duration=discovery_service.discovery_duration;
     //If time passed is less than the discovery duration than 
-    ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "current duration%"PRIu32 "total duration%"PRIu32, current_time, discovery_start_time,(current_time-discovery_start_time),duration); 
+    //ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "current duration%"PRIu32 "total duration%"PRIu32, current_time, discovery_start_time,(current_time-discovery_start_time),duration); 
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     BaseType_t notify_result;
@@ -164,6 +165,7 @@ void start_discovery(){
     //Set the record to 0
 
     //Allready running
+    ESP_LOGI(TAG,"starting discovery");
     if(discovery_service.discovery_state==true)
         return;
 

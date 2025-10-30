@@ -94,7 +94,7 @@ static esp_err_t esp_now_transport_send_discovery(void)
     msg.crc = 0;
 
     esp_err_t ret = esp_now_send(BROADCAST_MAC, (uint8_t*)&msg, sizeof(msg));
-    ESP_LOGI(TAG,"D ret %d",ret);
+    //ESP_LOGI(TAG,"D ret %d",ret);
     if (ret == ESP_OK) {
         ESP_LOGD(TAG, "Discovery broadcast sent");
     } else {
@@ -111,7 +111,7 @@ static esp_err_t esp_now_transport_send_discovery(void)
         return ESP_FAIL;
     }*/
 
-    ESP_LOGI(TAG, "Discovery sent");
+    //ESP_LOGI(TAG, "Discovery sent");
     return ESP_OK;
 }
 
