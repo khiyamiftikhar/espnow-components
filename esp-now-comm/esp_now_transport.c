@@ -16,6 +16,13 @@ static const char *TAG = "ESP_NOW_TRANSPORT";
 // Broadcast MAC address for discovery
 static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+
+//Handles are used in this source because dynamic unreg has to be done. Otherwise in other source NULL is passed
+static event_adapter_handle_t discovery_event_handle=NULL;
+static event_adapter_handle_t discovery_ack_event_handle=NULL;
+static event_adapter_handle_t msg_received_event_handle=NULL;
+static event_adapter_handle_t msg_sent_event_handle=NULL;
+
 DEFINE_EVENT_ADAPTER(ESPNOW_TRANSPORT);
 
 // Message types
@@ -72,10 +79,10 @@ esp_err_t esp_now_transport_deinit(void)
     esp_now_deinit();
     esp_now_state.initialized = false;
 
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,&discovery_event_handle);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,&discovery_ack_event_handle);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,&msg_received_event_handle);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,msg_sent_event_handle);
     
     ESP_LOGI(TAG, "ESP-NOW transport deinitialized");
     return ESP_OK;
@@ -457,10 +464,10 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     //Earlier this was accomplised using callbacks
     //Now this source posts events
 
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,NULL);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,NULL);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,NULL);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,NULL);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,NULL,&discovery_event_handle);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,NULL,&discovery_ack_event_handle);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,NULL,&msg_received_event_handle);
+    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,NULL,&msg_sent_event_handle);
     // Create discovery timer
     /*
     esp_now_state.discovery_timer = xTimerCreate(

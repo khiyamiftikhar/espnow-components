@@ -107,7 +107,7 @@ esp_err_t home_node_service_create(home_node_config_t* config){
 
     if(config==NULL)
         return ESP_FAIL;
-    home_node_service.user_interaction=config->user_output;
+   
     
     
     home_node_service.msg_interface=config->msg_interface;

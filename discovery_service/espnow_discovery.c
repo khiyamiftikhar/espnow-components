@@ -237,7 +237,7 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     ESP_ERROR_CHECK(ret!=1);
 
     //Register the discovery completion
-    DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL);
+    DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL,NULL);
 
     discovery_service.message_interface=config->discovery;
     
