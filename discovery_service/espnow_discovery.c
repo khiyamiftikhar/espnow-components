@@ -5,11 +5,15 @@
 #include "freertos/task.h"
 
 #include "esp_log.h"
+#include "discovery_timer.h"
 #include "espnow_discovery.h"
 #include "inttypes.h"
+#include "event_system_adapter.h"
+
 
 #define         DISCOVERY_DURATION          5000    //ms
 #define         DISCOVERY_MAX_DEVICES       5
+#define         DISCOVERY_INTERVAL          500     //ms
 
 static const char* TAG= "discovery";
 
@@ -36,12 +40,13 @@ static struct{
     discovery_whitelist_interface_t* whitelist;
     discovery_timer_interface_t* timer;
     //These are the callbacks that are assigned internally and externally to appropriate invokers
-    discovery_service_interface_t discovery_callback_handlers;
     discovery_result_t discovery_result;
     bool discovery_state;
 }discovery_service={0};
 
 
+//This macro defined in the event_system_adapter_object creates custom apis with this name appended
+DEFINE_EVENT_ADAPTER(DISCOVERY_SERVICE);
 
 
 /// @brief Will be invoked when there is some incoming discovery packet
@@ -74,17 +79,37 @@ static void discovery_acknowledgement_handler(const uint8_t *mac_addr){
     memcpy(discovery_service.discovery_result.devices->mac,mac_addr,6);
     discovery_service.discovery_result.result_count++;
     if(discovery_service.whitelist->is_white_listed(mac_addr)==true){
-            //if yes then add as peer
+            ESP_LOGI(TAG,"yess added");
             discovery_service.message_interface->add_peer(mac_addr);
     }
-    
 
-    
 
 }
 
 
+void discovery_events_handler(discovery_events_t event,uint8_t* src_mac){
+
+    switch(event){
+
+        case DISCOVERY_EVENT_DISCOVERY_MESSAGE_ARRIVED:
+                incoming_discovery_handler(src_mac);
+                break;
+        case DISCOVERY_EVENT_DISCOVERY_MESSAGE_ACK_ARRIVED:
+                discovery_acknowledgement_handler(src_mac);           
+                break;
+        default:
+                break;
+
+    }
+
+}
+
+
+
+
+
 static void stop_discovery(){
+    ESP_LOGI(TAG,"stopping discovery");
     discovery_service.timer->stop_timer();
     //Must be guarded with a mutex lock
     discovery_service.discovery_state=false;
@@ -99,7 +124,7 @@ static  void timer_elapsed_handler(){
     uint32_t discovery_start_time=discovery_service.discovery_start_time;
     uint32_t duration=discovery_service.discovery_duration;
     //If time passed is less than the discovery duration than 
-    ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "current duration%"PRIu32 "total duration%"PRIu32, current_time, discovery_start_time,(current_time-discovery_start_time),duration); 
+    //ESP_LOGI(TAG, "current time %"PRIu32" previous time %"PRIu32 "current duration%"PRIu32 "total duration%"PRIu32, current_time, discovery_start_time,(current_time-discovery_start_time),duration); 
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     BaseType_t notify_result;
@@ -140,6 +165,7 @@ void start_discovery(){
     //Set the record to 0
 
     //Allready running
+    ESP_LOGI(TAG,"starting discovery");
     if(discovery_service.discovery_state==true)
         return;
 
@@ -180,10 +206,11 @@ static void discovery_task(void* args){
             else{
                 stop_discovery();
                 
-                if(discovery_service.message_interface->process_discovery_completion_callback!=NULL){
+                //if(discovery_service.message_interface->process_discovery_completion_callback!=NULL){
                     ESP_LOGI(TAG,"discovery over");
-                    discovery_service.message_interface->process_discovery_completion_callback(discovery_service.discovery_result.result_count);
-                }
+                    DISCOVERY_SERVICE_post_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,(void*)&discovery_service.discovery_result.result_count,sizeof(discovery_service.discovery_result.result_count));
+                  //  discovery_service.message_interface->process_discovery_completion_callback(discovery_service.discovery_result.result_count);
+                //}
             }
         }
     }
@@ -192,35 +219,39 @@ static void discovery_task(void* args){
 
 
 
-discovery_service_interface_t* discovery_service_init(config_espnow_discovery* config){
+esp_err_t discovery_service_init(config_espnow_discovery* config){
 
 
     if(config==NULL)
-        return NULL;
+        return ESP_FAIL;
+
+
+    discovery_timer_implementation_t* timer_interface=timer_create(config->discovery_interval);
+
+    discovery_service.timer=&timer_interface->methods;
+    timer_interface->callback_handler=timer_elapsed_handler;
+
 
     BaseType_t ret=xTaskCreate(discovery_task,"discovery task",4096,NULL,5,&discovery_service.discovery_task);
 
     ESP_ERROR_CHECK(ret!=1);
 
+    //Register the discovery completion
+    DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL,NULL);
+
     discovery_service.message_interface=config->discovery;
     
 
     discovery_service.whitelist=config->whitelist;
-    discovery_service.timer=config->timer;
     discovery_service.discovery_duration=config->discovery_duration;
     discovery_service.discovery_interval=config->discovery_interval;
     
     
 
-    //Right now it is only invokd once. in future the button interface will be useed
-    //start_discovery();
-    //Now assigning the handlers pointers to the handers
-    discovery_service.discovery_callback_handlers.comm_callback_handler.process_discovery_acknowledgement_callback=discovery_acknowledgement_handler;
-    discovery_service.discovery_callback_handlers.comm_callback_handler.process_discovery_callback=incoming_discovery_handler;
-    discovery_service.discovery_callback_handlers.input_callback_handler.button_event_callback=NULL;  //not yet used
-    discovery_service.discovery_callback_handlers.timer_callback_handler.timer_handler=timer_elapsed_handler;
+    
+    
 
-    return &discovery_service.discovery_callback_handlers;
+    return ESP_OK;
 
 
 }

@@ -7,12 +7,12 @@
 
 static const char* TAG="gate-node";
 
+DEFINE_EVENT_ADAPTER(GATE_NODE);
 
 static struct {
     node_msg_interface_t* msg;
     node_white_list_interface_t* list;
     gate_node_lock_interface_t* lock;
-    gate_node_callback_handlers_t callback_handlers;
 }gate_node={0};
 
 
@@ -110,7 +110,7 @@ static void process_lock_message(const uint8_t *mac_addr, const lock_system_mess
 
 
 
-static void msg_received_handler(const uint8_t* mac,const uint8_t* msg, size_t length ){
+void gate_message_received_handler(const uint8_t* mac,const uint8_t* msg, size_t length ){
     
     //ESP_LOGI(TAG,"in received");
     if(msg==NULL || mac==NULL)
@@ -141,21 +141,21 @@ static void msg_received_handler(const uint8_t* mac,const uint8_t* msg, size_t l
 }
 
 
-gate_node_service_interface_t* gate_node_init(gate_node_config_t* config){
+esp_err_t gate_node_init(gate_node_config_t* config){
 
     if(config==NULL)
-        return NULL;
+        return ESP_FAIL;
     
     gate_node.list=config->list;
     gate_node.lock=config->lock;
     gate_node.msg=config->msg;
     
     ESP_LOGI(TAG,"check in gate service init %d",gate_node.list->is_in_whitelist(NULL));
-    gate_node.callback_handlers.msg_received_handler=msg_received_handler;
+    
 
 
     //The msg sent call back handler does not make sense at the gate node
     //because the gate node does not require confirmation 
 
-    return &gate_node.callback_handlers;
+    return ESP_OK;
 }

@@ -7,10 +7,35 @@
 #include "esp_now.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include "event_system_adapter.h"
 
 //#ifdef __cplusplus
 //extern "C" {
 //#endif
+
+DECLARE_EVENT_ADAPTER(ESPNOW_TRANSPORT);
+
+//All those callbacks are now replaced by these events
+#define ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING               1
+#define ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING           2
+#define ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED                     3
+#define ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT                         4
+
+typedef struct{
+    uint8_t src_mac[6];
+    uint16_t payload_len;
+    uint8_t payload[];      //Note not a pointer, and last member bcz mem after the struct size will be used by the payload
+}espnow_msg_recv_t;
+
+typedef struct{
+    uint8_t dest_mac[6];
+    bool success;
+}espnow_msg_sent_status_t;
+
+
+
+
+   
 
 // Maximum data payload size (ESP-NOW max is 250, minus our header)
 #define ESP_NOW_TRANSPORT_MAX_DATA_LEN  (ESP_NOW_MAX_DATA_LEN - 16)

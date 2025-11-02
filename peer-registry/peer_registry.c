@@ -3,6 +3,7 @@
 #include "peer_registry.h"
 #include "esp_mac.h"
 #include "esp_log.h"
+#include "esp_debug_helpers.h"
 #include "string.h"
 
 static const char *TAG = "PEER_REGISTRY";
@@ -56,7 +57,11 @@ static int find_peer_slot_by_id(peer_device_id_t device_id)
 
 // Helper function to find peer slot by MAC address - O(n)
 static int find_peer_slot_by_mac(const uint8_t *mac_addr)
-{
+{   
+
+    
+    //esp_backtrace_print(6);
+
     ESP_LOGI(TAG,"finding record");
     if (!mac_addr) {
         return -1;
@@ -277,6 +282,7 @@ bool peer_registry_exists_by_id(peer_device_id_t device_id)
 bool peer_registry_exists_by_mac(const uint8_t *mac_addr)
 {
 
+    
     ESP_LOGI(TAG,"checking record");
     if (!registry_state.initialized) {
         return false;
