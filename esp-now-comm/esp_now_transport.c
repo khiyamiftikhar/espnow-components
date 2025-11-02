@@ -18,10 +18,10 @@ static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
 //Handles are used in this source because dynamic unreg has to be done. Otherwise in other source NULL is passed
-static event_adapter_handle_t discovery_event_handle=NULL;
-static event_adapter_handle_t discovery_ack_event_handle=NULL;
-static event_adapter_handle_t msg_received_event_handle=NULL;
-static event_adapter_handle_t msg_sent_event_handle=NULL;
+static event_adapter_handle_t discovery_event_handle;
+static event_adapter_handle_t discovery_ack_event_handle;
+static event_adapter_handle_t msg_received_event_handle;
+static event_adapter_handle_t msg_sent_event_handle;
 
 DEFINE_EVENT_ADAPTER(ESPNOW_TRANSPORT);
 
@@ -82,7 +82,7 @@ esp_err_t esp_now_transport_deinit(void)
     ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,&discovery_event_handle);
     ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,&discovery_ack_event_handle);
     ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,&msg_received_event_handle);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,msg_sent_event_handle);
+    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,&msg_sent_event_handle);
     
     ESP_LOGI(TAG, "ESP-NOW transport deinitialized");
     return ESP_OK;
