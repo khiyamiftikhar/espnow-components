@@ -35,8 +35,8 @@
 //Package for the discovery user
 typedef struct {
 
-    esp_now_transport_discovery_interface_t discovery;
-    esp_now_transport_common_interface_t common;
+    esp_now_transport_discovery_interface_t discovery_interface;
+    esp_now_transport_common_interface_t common_interface;
 
 }esp_now_trasnsport_discovery_package_t;
 
@@ -45,8 +45,8 @@ typedef struct {
 //Package for the msg user
 typedef struct {
 
-    esp_now_transport_msg_interface_t msg;
-    esp_now_transport_common_interface_t common;
+    esp_now_transport_msg_interface_t msg_interface;
+    esp_now_transport_common_interface_t common_interface;
 
 }esp_now_trasnsport_msg_package_t;
 
@@ -69,8 +69,11 @@ esp_err_t esp_now_transport_init(const esp_now_transport_config_t *config);
      */
 esp_err_t esp_now_transport_deinit(void);
 
-
+/// @brief This interface struct contaains complete package required by the discovery service
+/// @return 
 esp_now_trasnsport_discovery_package_t* esp_now_transport_get_discovery_interface();
+
+/// @brief This interface struct contaains complete package required by message service
 esp_now_trasnsport_msg_package_t* esp_now_transport_get_msg_interface();
 
 
