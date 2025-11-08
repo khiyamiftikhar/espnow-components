@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "esp_now_common_interface.h"
-#include "esp_now_discovery_interface.h"
+#include "peer_manager_interface.h"
+#include "discovery_interface.h"
 #include "esp_now_msg_interface.h"
 //#ifdef __cplusplus
 //extern "C" {
@@ -36,7 +36,7 @@
 typedef struct {
 
     esp_now_transport_discovery_interface_t discovery_interface;
-    esp_now_transport_common_interface_t common_interface;
+    esp_now_peer_manager_interface_t common_interface;
 
 }esp_now_trasnsport_discovery_package_t;
 
@@ -46,7 +46,7 @@ typedef struct {
 typedef struct {
 
     esp_now_transport_msg_interface_t msg_interface;
-    esp_now_transport_common_interface_t common_interface;
+    esp_now_peer_manager_interface_t common_interface;
 
 }esp_now_trasnsport_msg_package_t;
 

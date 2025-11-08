@@ -1,5 +1,5 @@
-#ifndef ESP_NOW_COMMON_INTERFACE_H
-#define ESP_NOW_COMMON_INTERFACE_H
+#ifndef PEER_MANAGER_INTERFACE_H
+#define PEER_MANAGER_INTERFACE_H
 
 
 #include "stdint.h"
@@ -36,7 +36,8 @@ typedef struct {
 
 
 
-}esp_now_transport_common_interface_t;
+}esp_now_peer_manager_interface_t;
+
 
 
 

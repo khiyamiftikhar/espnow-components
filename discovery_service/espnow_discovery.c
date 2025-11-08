@@ -48,7 +48,7 @@ static struct{
     QueueHandle_t callback_queue;
     //These are the interfaces that it uses and are injected to it
     esp_now_transport_discovery_interface_t* discovery_interface;
-    esp_now_transport_common_interface_t* common_interface;
+    esp_now_peer_manager_interface_t* common_interface;
     database_interface_t* database_interface;
     discovery_timer_interface_t* timer;
     //These are the callbacks that are assigned internally and externally to appropriate invokers
