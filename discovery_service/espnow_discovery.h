@@ -7,6 +7,7 @@
 #include "discovery_timer_interface.h"
 #include "peer_manager_interface.h"
 #include "database_interface.h"
+#include "discovery_interface.h"
 #include "event_system_adapter.h"
 
 
@@ -36,7 +37,7 @@ typedef struct{
         ///Interval between each discoovery broadcast. Must be less than discovery_duration
         uint32_t discovery_interval;             //mircoseconds
         esp_now_transport_discovery_interface_t* discovery_interface;
-        esp_now_peer_manager_interface_t* common_interface;
+        esp_now_peer_manager_interface_t* peer_manager_interface;
         database_interface_t* database_interface;
       
 }config_espnow_discovery;
@@ -56,7 +57,7 @@ typedef enum{
 /// @brief Handles the above enum evens
 /// @param event 
 /// @param src_mac 
-void discovery_events_handler(discovery_events_t event,uint8_t* src_mac);
+//void discovery_events_handler(discovery_events_t event,uint8_t* src_mac);
 
 esp_err_t discovery_service_init(config_espnow_discovery* config);
 

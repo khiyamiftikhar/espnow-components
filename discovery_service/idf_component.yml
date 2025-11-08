@@ -11,7 +11,7 @@ dependencies:
     #git: https://github.com/khiyamiftikhar/espnow-components
     #path: database-interface
     #version: development/layered-architecure
-  tabase-interface:
+  discovery-interface:
     path: E:/vscodeespidf/projectworkspace/components-new/esp-now/discovery-interface
     #git: https://github.com/khiyamiftikhar/espnow-components
     #path: database-interface

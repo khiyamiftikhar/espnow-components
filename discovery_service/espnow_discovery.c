@@ -48,7 +48,7 @@ static struct{
     QueueHandle_t callback_queue;
     //These are the interfaces that it uses and are injected to it
     esp_now_transport_discovery_interface_t* discovery_interface;
-    esp_now_peer_manager_interface_t* common_interface;
+    esp_now_peer_manager_interface_t* peer_manager_interface;
     database_interface_t* database_interface;
     discovery_timer_interface_t* timer;
     //These are the callbacks that are assigned internally and externally to appropriate invokers
@@ -68,11 +68,11 @@ static void incoming_discovery_handler(const uint8_t *mac_addr){
 
 
     //Check if device is in the white list
-    if(discovery_service.whitelist->is_white_listed(mac_addr)==true){
+    if(discovery_service.database_interface->is_white_listed(mac_addr)==true){
         //if yes then add as peer
-        discovery_service.common_interface->add_peer(mac_addr);
+        discovery_service.peer_manager_interface->esp_now_transport_add_peer(mac_addr);
         //And tell the device that its discoveery was  received, so that it stops if desires
-        discovery_service.discovery_interface->acknowledge_the_discovery(mac_addr);
+        discovery_service.discovery_interface->esp_now_transport_send_discovery_ack(mac_addr);
     }
 
     //if(discovery_service.message_interface->is_peer_exist(mac_addr)!=true)
@@ -90,7 +90,7 @@ static void discovery_acknowledgement_handler(const uint8_t *mac_addr){
     discovery_service.discovery_result.result_count++;
     if(discovery_service.database_interface->is_white_listed(mac_addr)==true){
             ESP_LOGI(TAG,"yess added");
-            discovery_service.common_interface->add_peer(mac_addr);
+            discovery_service.peer_manager_interface->esp_now_transport_add_peer(mac_addr);
     }
 
 
@@ -128,7 +128,7 @@ static void discovery_callbacks_handler_task(void* args){
 /// @brief It will be invoked by the esp-now-comm component
 /// @param src_mac 
 
-static void discovery_callback_handler(uint8_t* src_mac){
+static void discovery_callback_handler(const uint8_t* src_mac){
 
     callback_queue_data_t queue_data;
 
@@ -142,7 +142,7 @@ static void discovery_callback_handler(uint8_t* src_mac){
 
 /// @brief It will be invoked by the esp-now-comm component
 /// @param src_mac 
-static void discovery_ack_callback_handler(uint8_t* src_mac){
+static void discovery_ack_callback_handler(const uint8_t* src_mac){
 
     callback_queue_data_t queue_data;
 
@@ -220,7 +220,7 @@ void start_discovery(){
 
     memset(&discovery_service.discovery_result,0,sizeof(discovery_result_t));
     
-    if(discovery_service.message_interface!=NULL && discovery_service.timer!=NULL ){
+    if(discovery_service.discovery_interface!=NULL && discovery_service.timer!=NULL ){
         //start discovery
         //discovery_service.message_interface->send_discovery();
         //start timer
@@ -251,7 +251,7 @@ static void discovery_task(void* args){
     while(1){
          if(xTaskNotifyWait(0, 0, &keep_alive, portMAX_DELAY)==pdTRUE){
             if(keep_alive==1)
-                discovery_service.message_interface->send_discovery();
+                discovery_service.discovery_interface->esp_now_transport_send_discovery();
             else{
                 stop_discovery();
                 
@@ -285,7 +285,7 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
 
     ESP_ERROR_CHECK(ret!=1);
 
-    BaseType_t ret=xTaskCreate(discovery_callbacks_handler_task,"callback handler task",4096,NULL,5,&discovery_service.callback_handler_task);
+    ret=xTaskCreate(discovery_callbacks_handler_task,"callback handler task",4096,NULL,5,&discovery_service.callback_handler_task);
     ESP_ERROR_CHECK(ret!=1);
 
     discovery_service.callback_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
@@ -295,15 +295,15 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     //Register the discovery completion
     DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL,NULL);
 
-    discovery_service.message_interface=config->discovery;
+    discovery_service.discovery_interface=config->discovery_interface;
     
 
-    discovery_service.discovery_interface=config->discovery_interface;
+
     //Register the callbacks
     discovery_service.discovery_interface->set_esp_now_device_discovery_cb(discovery_callback_handler);
     discovery_service.discovery_interface->set_esp_now_device_discovery_ack_cb(discovery_ack_callback_handler);
 
-    discovery_service.common_interface=config->common_interface;
+    discovery_service.peer_manager_interface=config->peer_manager_interface;
     discovery_service.database_interface=config->database_interface;
     discovery_service.discovery_duration=config->discovery_duration;
     discovery_service.discovery_interval=config->discovery_interval;
