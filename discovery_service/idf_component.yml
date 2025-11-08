@@ -1,15 +1,13 @@
 dependencies:
-
   event-adapter:
     git: https://github.com/khiyamiftikhar/event-adapter
-
   common-interface:
-    #path: ../common-interface
+    #path: E:/vscodeespidf/projectworkspace/components-new/esp-now/common-interface
     git: https://github.com/khiyamiftikhar/espnow-components
     path: common-interface
     version: development/layered-architecure
-
   database-interface:
+    #path: E:/vscodeespidf/projectworkspace/components-new/esp-now/database-interface
     git: https://github.com/khiyamiftikhar/espnow-components
     path: database-interface
     version: development/layered-architecure
