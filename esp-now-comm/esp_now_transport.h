@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include "peer_manager_interface.h"
 #include "discovery_interface.h"
-#include "esp_now_msg_interface.h"
+#include "message_interface.h"
 //#ifdef __cplusplus
 //extern "C" {
 //#endif
@@ -21,7 +21,7 @@
    
 
 // Maximum data payload size (ESP-NOW max is 250, minus our header)
-#define ESP_NOW_TRANSPORT_MAX_DATA_LEN  (250 - 16)
+//#define ESP_NOW_TRANSPORT_MAX_DATA_LEN  (250 - 16)
 
  typedef struct {
 //    esp_now_transport_callbacks_t callbacks;        ///< Callback functions
