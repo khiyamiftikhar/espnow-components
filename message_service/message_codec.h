@@ -16,6 +16,26 @@ DECLARE_EVENT_ADAPTER(MESSAGE_CODEC);
 
 //These are the interfaces that it requires
 
+
+
+
+typedef enum{
+    LOCK_SYSTEM_COMMAND_OPEN_LOCK,
+    LOCK_SYSTEM_COMMAND_CLOSE_LOCK,
+    LOCK_SYSTEM_COMMAND_LOCK_STATUS
+}lock_system_command_type_t;
+
+typedef enum{
+    LOCK_STATUS_OPEN,
+    LOCK_STATUS_CLOSED,
+    LOCK_STATUS_OPENING,
+    LOCK_STATUS_CLOSING,
+    LOCK_STATUS_CLOSED_IDLE,    //These new states added for automotive lock actuator
+    LOCK_STATUS_OPENDED_IDLE,
+
+}lock_system_lock_status_t;
+
+
 typedef struct{
     esp_now_transport_msg_interface_t* msg_interface;
     database_interface_t* database_interface;
@@ -29,9 +49,10 @@ typedef struct{
 
 
 
+esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_t command);
 
 
-
+esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t status);
 esp_err_t lock_system_message_codec_init(message_codec_config_t* config);
 
 

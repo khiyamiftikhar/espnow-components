@@ -4,6 +4,7 @@ dependencies:
     git: https://github.com/khiyamiftikhar/event-adapter
 
   common-interface:
+    #path: ../common-interface
     git: https://github.com/khiyamiftikhar/espnow-components
     path: common-interface
     version: development/layered-architecure

@@ -13,15 +13,6 @@
 static const char* TAG="message-decode";
 DEFINE_EVENT_ADAPTER(MESSAGE_CODEC);
 
-typedef enum{
-    LOCK_STATUS_OPEN,
-    LOCK_STATUS_CLOSED,
-    LOCK_STATUS_OPENING,
-    LOCK_STATUS_CLOSING,
-    LOCK_STATUS_CLOSED_IDLE,    //These new states added for automotive lock actuator
-    LOCK_STATUS_OPENDED_IDLE,
-
-}lock_system_lock_status_t;
 
 
 
@@ -30,11 +21,6 @@ typedef enum{
     MSG_TYPE_STATUS
 }lock_system_message_type_t;
 
-typedef enum{
-    LOCK_SYSTEM_COMMAND_OPEN_LOCK,
-    LOCK_SYSTEM_COMMAND_CLOSE_LOCK,
-    LOCK_SYSTEM_COMMAND_LOCK_STATUS
-}lock_system_command_type_t;
 
 
 typedef struct {
@@ -79,17 +65,38 @@ static struct {
 
 
 
+esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_t command) {
+
+    lock_system_message_t response_msg = {
+        .msg_type = MSG_TYPE_COMMAD,
+        .cmd = command,  // Original command that triggered this response
+    };
+    
+    esp_err_t result = message_codec_state.msg_interface->esp_now_transport_send_data(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
+    
+    if (result == ESP_OK) {
+        ESP_LOGI(TAG, "Status response sent successfully: %d", status);
+    } else {
+        ESP_LOGE(TAG, "Failed to send status response: %s", esp_err_to_name(result));
+    }
+
+
+
+
+}
+
+
 /**
  * Send status response via ESP-NOW
  */
-static void status_msg_handler(lock_system_lock_status_t status) {
+esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t status) {
     lock_system_message_t response_msg = {
         .msg_type = MSG_TYPE_STATUS,
         .cmd = LOCK_SYSTEM_COMMAND_LOCK_STATUS,  // Original command that triggered this response
         .lock_status = status
     };
     
-    esp_err_t result = gate_node.msg->send_msg(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
+    esp_err_t result = message_codec_state.msg_interface->esp_now_transport_send_data(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
     
     if (result == ESP_OK) {
         ESP_LOGI(TAG, "Status response sent successfully: %d", status);
@@ -99,11 +106,24 @@ static void status_msg_handler(lock_system_lock_status_t status) {
 }
 
 
-
 /**
  * Handle incoming command messages
  */
 
+static void status_msg_handler(uin8_t* mac_addr,lock_system_lock_status_t cmd){
+//static void handle_command_message(const uint8_t *mac_addr, const lock_system_message_t *msg) {
+    
+    MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,(void*)&cmd,sizeof(lock_system_lock_status_t));
+}
+            
+            
+    
+
+
+
+/**
+ * Handle incoming command messages
+ */
 
 static void command_msg_handler(uin8_t* mac_addr,lock_system_command_type_t cmd){
 //static void handle_command_message(const uint8_t *mac_addr, const lock_system_message_t *msg) {
@@ -171,6 +191,10 @@ static void message_received_handler(const uint8_t *mac_addr, const lock_system_
 }
 
 
+static void message_sent_handler(uint8_t* mac,bool success){
+
+    ESP_LOGI(TAG,",message sent success");
+}
 
 
 
@@ -192,7 +216,7 @@ static void discovery_callbacks_handler_task(void* args){
 
                     break; 
                 case MSG_SENT:
-                    msg_sent_handler(queue_data.success);
+                    msg_sent_handler(queue_data.mac,queue_data.success);
                     
                     break;
                 default:
