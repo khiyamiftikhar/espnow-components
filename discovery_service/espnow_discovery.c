@@ -307,13 +307,7 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     discovery_service.database_interface=config->database_interface;
     discovery_service.discovery_duration=config->discovery_duration;
     discovery_service.discovery_interval=config->discovery_interval;
-    
-    
-
-    
-    
 
     return ESP_OK;
-
 
 }
