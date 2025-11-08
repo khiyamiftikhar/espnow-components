@@ -6,3 +6,9 @@ dependencies:
     git: https://github.com/khiyamiftikhar/espnow-components
     path: database-interface
     version: development/layered-architecure
+  message-interface:
+    path: E:/vscodeespidf/projectworkspace/components-new/esp-now/message-interface
+    
+    #git: https://github.com/khiyamiftikhar/espnow-components
+    #path: database-interface
+    #version: development/layered-architecure
