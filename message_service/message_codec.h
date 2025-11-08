@@ -2,9 +2,11 @@
 #define MESSAGE_CODEC_H
 
 
-#include "message_def.h"
-#include "esp_now_msg_interface.h"
+//#include "message_def.h"
+#include "message_interface.h"
+#include "database_interface.h"
 #include "event_system_adapter.h"
+
 
 DECLARE_EVENT_ADAPTER(MESSAGE_CODEC);
 
@@ -20,20 +22,20 @@ DECLARE_EVENT_ADAPTER(MESSAGE_CODEC);
 
 
 typedef enum{
-    LOCK_SYSTEM_COMMAND_OPEN_LOCK,
-    LOCK_SYSTEM_COMMAND_CLOSE_LOCK,
-    LOCK_SYSTEM_COMMAND_LOCK_STATUS
-}lock_system_command_type_t;
+    MESSAGE_COMMAND_OPEN_LOCK,
+    MESSAGE_COMMAND_CLOSE_LOCK,
+    MESSAGE_COMMAND_LOCK_STATUS
+}message_codec_command_type_t;
 
 typedef enum{
-    LOCK_STATUS_OPEN,
-    LOCK_STATUS_CLOSED,
-    LOCK_STATUS_OPENING,
-    LOCK_STATUS_CLOSING,
-    LOCK_STATUS_CLOSED_IDLE,    //These new states added for automotive lock actuator
-    LOCK_STATUS_OPENDED_IDLE,
+    MESSAGE_LOCK_STATUS_OPEN,
+    MESSAGE_LOCK_STATUS_CLOSED,
+    MESSAGE_LOCK_STATUS_OPENING,
+    MESSAGE_LOCK_STATUS_CLOSING,
+    MESSAGE_LOCK_STATUS_CLOSED_IDLE,    //These new states added for automotive lock actuator
+    MESSAGE_LOCK_STATUS_OPENDED_IDLE,
 
-}lock_system_lock_status_t;
+}message_codec_lock_status_t;
 
 
 typedef struct{
@@ -49,10 +51,10 @@ typedef struct{
 
 
 
-esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_t command);
+esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_type_t command);
 
 
-esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t status);
+esp_err_t message_codec_send_status(uint8_t* mac_addr,message_codec_lock_status_t status);
 esp_err_t lock_system_message_codec_init(message_codec_config_t* config);
 
 

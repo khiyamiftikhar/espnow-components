@@ -1,5 +1,6 @@
 
 #include "stdio.h"
+#include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -19,17 +20,17 @@ DEFINE_EVENT_ADAPTER(MESSAGE_CODEC);
 typedef enum{
     MSG_TYPE_COMMAD,
     MSG_TYPE_STATUS
-}lock_system_message_type_t;
+}message_codec_message_type_t;
 
 
 
 typedef struct {
-    lock_system_message_type_t msg_type;
-    lock_system_command_type_t cmd;
-    lock_system_lock_status_t lock_status;
+    message_codec_message_type_t msg_type;
+    message_codec_command_type_t cmd;
+    message_codec_lock_status_t lock_status;
     void* context;
 
-}lock_system_message_t;
+}message_codec_message_t;
 
 
 typedef enum{
@@ -41,7 +42,7 @@ typedef enum{
 typedef struct{
     msg_info_type_t type;
     uint8_t mac[6];
-    lock_system_message_t msg;
+    message_codec_message_t msg;
     bool success;
 }callback_queue_data_t;
 
@@ -64,10 +65,11 @@ static struct {
 
 
 
+esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_type_t command){
 
-esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_t command) {
 
-    lock_system_message_t response_msg = {
+
+    message_codec_message_t response_msg = {
         .msg_type = MSG_TYPE_COMMAD,
         .cmd = command,  // Original command that triggered this response
     };
@@ -75,12 +77,12 @@ esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_
     esp_err_t result = message_codec_state.msg_interface->esp_now_transport_send_data(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
     
     if (result == ESP_OK) {
-        ESP_LOGI(TAG, "Status response sent successfully: %d", status);
+        ESP_LOGI(TAG, "Status response sent successfully: %d", result);
     } else {
         ESP_LOGE(TAG, "Failed to send status response: %s", esp_err_to_name(result));
     }
 
-
+    return result;
 
 
 }
@@ -89,10 +91,11 @@ esp_err_t message_codec_send_command(uint8_t* mac_addr,lock_system_command_type_
 /**
  * Send status response via ESP-NOW
  */
-esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t status) {
-    lock_system_message_t response_msg = {
+esp_err_t message_codec_send_status(uint8_t* mac_addr,message_codec_lock_status_t status){
+
+    message_codec_message_t response_msg = {
         .msg_type = MSG_TYPE_STATUS,
-        .cmd = LOCK_SYSTEM_COMMAND_LOCK_STATUS,  // Original command that triggered this response
+        .cmd = MESSAGE_COMMAND_LOCK_STATUS,  // Original command that triggered this response
         .lock_status = status
     };
     
@@ -103,6 +106,8 @@ esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t 
     } else {
         ESP_LOGE(TAG, "Failed to send status response: %s", esp_err_to_name(result));
     }
+
+    return result;
 }
 
 
@@ -110,10 +115,10 @@ esp_err_t message_codec_send_status(uint8_t* mac_addr,lock_system_lock_status_t 
  * Handle incoming command messages
  */
 
-static void status_msg_handler(uin8_t* mac_addr,lock_system_lock_status_t cmd){
-//static void handle_command_message(const uint8_t *mac_addr, const lock_system_message_t *msg) {
+static void status_msg_handler(uint8_t* mac_addr,message_codec_lock_status_t cmd){
+//static void handle_command_message(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     
-    MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,(void*)&cmd,sizeof(lock_system_lock_status_t));
+    MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,(void*)&cmd,sizeof(message_codec_lock_status_t));
 }
             
             
@@ -125,10 +130,10 @@ static void status_msg_handler(uin8_t* mac_addr,lock_system_lock_status_t cmd){
  * Handle incoming command messages
  */
 
-static void command_msg_handler(uin8_t* mac_addr,lock_system_command_type_t cmd){
-//static void handle_command_message(const uint8_t *mac_addr, const lock_system_message_t *msg) {
+static void command_msg_handler(uint8_t* mac_addr,message_codec_command_type_t cmd){
+//static void handle_command_message(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     switch (cmd) {
-        case LOCK_SYSTEM_COMMAND_OPEN_LOCK:
+        case MESSAGE_COMMAND_OPEN_LOCK:
 
             ESP_LOGI(TAG, "Command: Open lock");
             MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_OPEN_GATE,NULL,0);
@@ -136,13 +141,13 @@ static void command_msg_handler(uin8_t* mac_addr,lock_system_command_type_t cmd)
             
             break;
             
-        case LOCK_SYSTEM_COMMAND_CLOSE_LOCK:
+        case MESSAGE_COMMAND_CLOSE_LOCK:
             ESP_LOGI(TAG, "Command: Close lock");
             MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_CLOSE_GATE,NULL,0);
             
             break;
             
-        case LOCK_SYSTEM_COMMAND_LOCK_STATUS:
+        case MESSAGE_COMMAND_LOCK_STATUS:
             MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,NULL,0);
 
             //Get  lock status
@@ -163,7 +168,7 @@ static void command_msg_handler(uin8_t* mac_addr,lock_system_command_type_t cmd)
  * Main message processing function
  * Call this from your ESP-NOW receive callback
  */
-static void message_received_handler(const uint8_t *mac_addr, const lock_system_message_t *msg) {
+static void message_received_handler(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     ESP_LOGI(TAG,"process received");
     if (!msg || !mac_addr) {
         ESP_LOGE(TAG, "Invalid parameters");
@@ -201,22 +206,22 @@ static void message_sent_handler(uint8_t* mac,bool success){
 
 /// @brief It will handle the updates pushed to queue y the callbacks invoked by the esp-now-comm
 /// @param args 
-static void discovery_callbacks_handler_task(void* args){
+static void message_callbacks_handler_task(void* args){
 
     callback_queue_data_t queue_data={0};
 
     while(1){
 
 
-        if(xQueueReceive(discovery_service.callback_queue,&queue_data,portMAX_DELAY)==pdTRUE)
+        if(xQueueReceive(message_codec_state.callback_handler_queue,&queue_data,portMAX_DELAY)==pdTRUE)
 
             switch(queue_data.type){
                 case MSG_RECEIVED:
-                    message_received_handler(queue_data.mac,queue_data.msg);
+                    message_received_handler(queue_data.mac,&queue_data.msg);
 
                     break; 
                 case MSG_SENT:
-                    msg_sent_handler(queue_data.mac,queue_data.success);
+                    message_sent_handler(queue_data.mac,queue_data.success);
                     
                     break;
                 default:
@@ -232,17 +237,17 @@ static void discovery_callbacks_handler_task(void* args){
 /// @param src_mac 
 
 
-static void message_recevied_callback_handler(const uint8_t* mac,const uint8_t* msg, size_t length ){
+static void message_recevied_callback_handler(const uint8_t* mac,const uint8_t* msg, size_t len ){
 
     callback_queue_data_t queue_data;
 
     queue_data.type=MSG_RECEIVED;
-    if(len!=sizeof(lock_system_message_t))
+    if(len!=sizeof(message_codec_message_t))
         return;
 
-    lock_system_message_t* lock_msg=(lock_system_message_t*)msg;
+    message_codec_message_t* lock_msg=(message_codec_message_t*)msg;
     memcpy(queue_data.mac,mac,sizeof(queue_data.mac));
-    memcpy(queue_data.msg,lock_msg,length);
+    memcpy(&queue_data.msg,lock_msg,len);
     xQueueSendFromISR(message_codec_state.callback_handler_queue,&queue_data,NULL);
 
 
@@ -255,10 +260,9 @@ static void message_sent_callback_handler(const uint8_t *mac_addr, bool success)
     callback_queue_data_t queue_data;
 
     queue_data.type=MSG_SENT;
-    memcpy(queue_data.mac,src_mac,sizeof(queue_data.mac));
-    queue_data.success-
-
-    xQueueSendFromISR(discovery_service.callback_queue,&queue_data,NULL);
+    memcpy(queue_data.mac,mac_addr,sizeof(queue_data.mac));
+    queue_data.success=success;
+    xQueueSendFromISR(message_codec_state.callback_handler_queue,&queue_data,NULL);
 
 
 }
@@ -274,7 +278,7 @@ esp_err_t lock_system_message_codec_init(message_codec_config_t* config){
     message_codec_state.msg_interface=config->msg_interface;
     message_codec_state.database_interface=config->database_interface;
     
-    BaseType_t ret=xTaskCreate(message_callback_handler_task,"message task",configMINIMAL_STACK_SIZE,NULL,5,&message_codec_state.callback_handler_task);
+    BaseType_t ret=xTaskCreate(message_callbacks_handler_task,"message task",configMINIMAL_STACK_SIZE,NULL,5,&message_codec_state.callback_handler_task);
 
     ESP_ERROR_CHECK(ret!=1);
 
