@@ -4,8 +4,12 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "esp_err.h"
-#include "event_system_adapter.h"
 #include "discovery_timer_interface.h"
+#include "peer_manager_interface.h"
+#include "database_interface.h"
+#include "discovery_interface.h"
+#include "event_system_adapter.h"
+
 
 
 
@@ -22,30 +26,7 @@ DECLARE_EVENT_ADAPTER(DISCOVERY_SERVICE);
 //The events related to discovery
 #define   DISCOVERY_EVENT_DISCOVERY_COMPLETE            1
 
-/*These are the interfaces which it requires, i.e its dependecies*/
-typedef struct{
-
-        //Start the Discovery
-        esp_err_t (*send_discovery)();
         
-        //Acknowldge the discovery to the device which broadasted
-        esp_err_t (*acknowledge_the_discovery)(const uint8_t *mac_addr);
-        
-        esp_err_t (*add_peer)(const uint8_t *mac_addr);
-        
-        bool (*is_peer_exist)(const uint8_t *mac_addr);
-        //Does not fit in this because it is th odd one. but has to be added so that it must inform on discovery completion
-        void (*process_discovery_completion_callback)(uint8_t total_devices_found);
-}discovery_comm_interface_t;
-
-        
-
-typedef struct{
-
-        //Check if any deivce is added to the white list
-        bool (*is_white_listed)(const uint8_t *mac_addr);
-
-}discovery_whitelist_interface_t;
 
 
 
@@ -55,8 +36,9 @@ typedef struct{
         uint32_t discovery_duration;            //mircoseconds
         ///Interval between each discoovery broadcast. Must be less than discovery_duration
         uint32_t discovery_interval;             //mircoseconds
-        discovery_comm_interface_t* discovery;
-        discovery_whitelist_interface_t* whitelist;
+        esp_now_transport_discovery_interface_t* discovery_interface;
+        esp_now_peer_manager_interface_t* peer_manager_interface;
+        database_interface_t* database_interface;
       
 }config_espnow_discovery;
 
@@ -75,7 +57,7 @@ typedef enum{
 /// @brief Handles the above enum evens
 /// @param event 
 /// @param src_mac 
-void discovery_events_handler(discovery_events_t event,uint8_t* src_mac);
+//void discovery_events_handler(discovery_events_t event,uint8_t* src_mac);
 
 esp_err_t discovery_service_init(config_espnow_discovery* config);
 

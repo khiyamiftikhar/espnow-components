@@ -18,12 +18,7 @@ static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
 //Handles are used in this source because dynamic unreg has to be done. Otherwise in other source NULL is passed
-static event_adapter_handle_t discovery_event_handle;
-static event_adapter_handle_t discovery_ack_event_handle;
-static event_adapter_handle_t msg_received_event_handle;
-static event_adapter_handle_t msg_sent_event_handle;
 
-DEFINE_EVENT_ADAPTER(ESPNOW_TRANSPORT);
 
 // Message types
 typedef enum {
@@ -42,15 +37,28 @@ typedef struct {
 } __attribute__((packed)) esp_now_internal_msg_t;
 
 // Component state
+
+typedef struct {
+    esp_now_transport_device_discovered_cb_t on_device_discovered;    ///< Called when a new device is discovered
+    esp_now_transport_discovery_ack_cb_t on_discovery_ack;           ///< Called when we receive discovery acknowledgment
+    esp_now_transport_data_received_cb_t msg_received_cb;
+    esp_now_transport_send_done_cb_t    msg_send_cb;
+} esp_now_transport_callbacks_t;
+
+
 static struct {
     bool initialized;
+    esp_now_transport_callbacks_t callbacks;
+    
     //esp_now_transport_callbacks_t callbacks;
     //TimerHandle_t discovery_timer;
     //bool discovery_active;
     //uint32_t discovery_interval_ms;
     //uint8_t total_discovery_attempts;        //How many times tried to send broadcast message
 //    uint8_t discovery_attempt_count;
-    esp_now_trasnsport_interface_t interface;
+    esp_now_trasnsport_discovery_package_t discovery;
+
+    esp_now_trasnsport_msg_package_t msg;
     //esp_now_transport_callbacks_t callbacks;
 } esp_now_state = {0};
 
@@ -79,11 +87,6 @@ esp_err_t esp_now_transport_deinit(void)
     esp_now_deinit();
     esp_now_state.initialized = false;
 
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,&discovery_event_handle);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,&discovery_ack_event_handle);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,&msg_received_event_handle);
-    ESPNOW_TRANSPORT_unregister_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,&msg_sent_event_handle);
-    
     ESP_LOGI(TAG, "ESP-NOW transport deinitialized");
     return ESP_OK;
 }
@@ -114,39 +117,10 @@ static esp_err_t esp_now_transport_send_discovery(void)
         ESP_LOGW(TAG, "Failed to send discovery broadcast: %s", esp_err_to_name(ret));
     }
     //esp_now_state.discovery_active = true;
-    
-
-
-    /*
-    if (xTimerStart(esp_now_state.discovery_timer, 0) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to start discovery timer");
-        esp_now_state.discovery_active = false;
-        return ESP_FAIL;
-    }*/
-
     //ESP_LOGI(TAG, "Discovery sent");
     return ESP_OK;
 }
 
-/*
-
-static esp_err_t esp_now_transport_stop_discovery(void)
-{
-    if (!esp_now_state.initialized) {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    esp_now_state.discovery_active = false;
-    //esp_now_transport_stop_discovery();
-    
-    
-    if (esp_now_state.discovery_timer) {
-        xTimerStop(esp_now_state.discovery_timer, 0);
-    }
-
-    ESP_LOGI(TAG, "Discovery stopped");
-    return ESP_OK;
-}*/
 
 static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint8_t *data, size_t len)
 {
@@ -154,6 +128,7 @@ static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint
         return ESP_ERR_INVALID_ARG;
     }
 
+    
     if (len > ESP_NOW_TRANSPORT_MAX_DATA_LEN) {
         ESP_LOGE(TAG, "Data too large: %zu > %d", len, ESP_NOW_TRANSPORT_MAX_DATA_LEN);
         return ESP_ERR_INVALID_SIZE;
@@ -281,13 +256,22 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
             ESP_LOGI(TAG, "Received discovery broadcast from " MACSTR, MAC2STR(msg->src_mac));
             
             // Notify application - let it decide whether to add peer
-            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,msg->src_mac,sizeof(msg->src_mac));
+            
+            if (esp_now_state.callbacks.on_device_discovered) {
+                esp_now_state.callbacks.on_device_discovered(msg->src_mac);
+            }
+
+            
             break;
             
 
         case MSG_TYPE_DISCOVERY_ACK:
             ESP_LOGI(TAG, "Received discovery ACK from " MACSTR, MAC2STR(msg->src_mac));
-            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,msg->src_mac,sizeof(msg->src_mac));
+            
+            if (esp_now_state.callbacks.on_discovery_ack) {
+                esp_now_state.callbacks.on_discovery_ack(msg->src_mac);
+            }
+
             // Don't add peer automatically - let application decide
             // Notify application that we were discovered by this device
             break;
@@ -307,8 +291,9 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
             message->payload_len=msg->payload_len;
 
             
-            ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,message,sizeof(msg_buffer));
-            esp_now_state.interface.callbacks.on_data_received(msg->src_mac, msg->payload, msg->payload_len);
+            if (esp_now_state.callbacks.msg_received_cb) {
+                esp_now_state.callbacks.msg_received_cb(msg->src_mac, msg->payload, msg->payload_len);
+            }
             
             break;
 
@@ -333,7 +318,11 @@ static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
     espnow_msg_sent_status_t msg;
     msg.success=success;
     memcpy(msg.dest_mac,mac_addr,sizeof(msg.dest_mac));
-    ESPNOW_TRANSPORT_post_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,&msg,sizeof(espnow_msg_sent_status_t));
+
+    
+    if (esp_now_state.callbacks.msg_send_cb) {
+                esp_now_state.callbacks.msg_send_cb(mac_addr, status == ESP_NOW_SEND_SUCCESS);
+            }
 
     
 }
@@ -394,13 +383,63 @@ esp_err_t set_esp_now_device_data_sent_cb(esp_now_transport_send_done_cb_t cb){
 */
 
 
+    
+static esp_err_t esp_now_transport_set_device_discovery_ack_cb(esp_now_transport_discovery_ack_cb_t cb){        ///< Callback functions
+
+    if(cb==NULL)
+        return ESP_FAIL;
+    esp_now_state.callbacks.on_discovery_ack=cb;
+
+    return ESP_OK;
+    
+}
+
+static esp_err_t esp_now_transport_set_device_discovered_cb(esp_now_transport_device_discovered_cb_t cb){        ///< Callback functions
+
+    if(cb==NULL)
+        return ESP_FAIL;
+    esp_now_state.callbacks.on_device_discovered=cb;
+
+    return ESP_OK;
+}
+
+static esp_err_t esp_now_transport_set_data_received_cb(esp_now_transport_data_received_cb_t cb){        ///< Callback functions
+    if(cb==NULL)
+        return ESP_FAIL;
+    esp_now_state.callbacks.msg_received_cb=cb;
+
+    return ESP_OK;
+}
+
+static esp_err_t esp_now_transport_set_send_done_cb(esp_now_transport_send_done_cb_t cb){        ///< Callback functions
+    if(cb==NULL)
+        return ESP_FAIL;
+    esp_now_state.callbacks.msg_send_cb=cb;
+
+    return ESP_OK;
+}
 
 
-esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_config_t *config)
+
+
+esp_now_trasnsport_discovery_package_t* esp_now_transport_get_discovery_interface(){
+
+    return &esp_now_state.discovery;
+
+
+}
+esp_now_trasnsport_msg_package_t* esp_now_transport_get_msg_interface(){
+
+    return &esp_now_state.msg;
+
+}
+
+
+esp_err_t esp_now_transport_init(const esp_now_transport_config_t *config)
 {
     if (esp_now_state.initialized) {
         ESP_LOGW(TAG, "Already initialized");
-        return NULL;
+        return ESP_OK;
     }
 
     /*
@@ -415,7 +454,7 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     esp_err_t ret = esp_now_init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init ESP-NOW: %s", esp_err_to_name(ret));
-        return NULL;
+        return ESP_FAIL;
     }
 
     // Register callbacks
@@ -423,14 +462,14 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register recv callback: %s", esp_err_to_name(ret));
         esp_now_deinit();
-        return NULL;
+        return ESP_FAIL;
     }
 
     ret = esp_now_register_send_cb(esp_now_send_cb);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register send callback: %s", esp_err_to_name(ret));
         esp_now_deinit();
-        return NULL;
+        return ESP_FAIL;
     }
 
     // Add broadcast peer for discovery
@@ -444,30 +483,36 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
     if (ret != ESP_OK && ret != ESP_ERR_ESPNOW_EXIST) {
         ESP_LOGE(TAG, "Failed to add broadcast peer: %s", esp_err_to_name(ret));
         esp_now_deinit();
-        return NULL;
+        return ESP_FAIL;
     }
 
     // Store configuration
     
     //esp_now_state.discovery_interval_ms = config->discovery_interval_ms;
     //esp_now_state.interface.callbacks = config->callbacks;
-    esp_now_state.interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
+    
+    
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
     //esp_now_state.interface.esp_now_transport_deinit=esp_now_transport_deinit;
-    esp_now_state.interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
-    esp_now_state.interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
-    esp_now_state.interface.esp_now_transport_send_data=esp_now_transport_send_data;
-    esp_now_state.interface.esp_now_transport_send_discovery=esp_now_transport_send_discovery;
-    esp_now_state.interface.esp_now_transport_send_discovery_ack=esp_now_transport_send_discovery_ack;
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
+
+    esp_now_state.msg.msg_interface.esp_now_transport_send_data=esp_now_transport_send_data;
+    
+    esp_now_state.msg.msg_interface.set_esp_now_device_data_rcv_cb=esp_now_transport_set_data_received_cb;
+    esp_now_state.msg.msg_interface.set_esp_now_device_data_sent_cb=esp_now_transport_set_send_done_cb;
+
+    esp_now_state.discovery.discovery_interface.esp_now_transport_send_discovery=esp_now_transport_send_discovery;
+    esp_now_state.discovery.discovery_interface.esp_now_transport_send_discovery_ack=esp_now_transport_send_discovery_ack;
+    esp_now_state.discovery.discovery_interface.set_esp_now_device_discovery_ack_cb=esp_now_transport_set_device_discovery_ack_cb;
+    esp_now_state.discovery.discovery_interface.set_esp_now_device_discovery_cb=esp_now_transport_set_device_discovered_cb;
     //esp_now_state.interface.esp_now_transport_stop_discovery=esp_now_transport_stop_discovery;
 
 
     //Earlier this was accomplised using callbacks
     //Now this source posts events
 
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_INCOMING,NULL,&discovery_event_handle);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_DISCOVERY_ACK_INCOMING,NULL,&discovery_ack_event_handle);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_RECEIVED,NULL,&msg_received_event_handle);
-    ESPNOW_TRANSPORT_register_event(ESPNOW_TRANSPORT_ROUTINE_EVENT_MSG_SENT,NULL,&msg_sent_event_handle);
+    
     // Create discovery timer
     /*
     esp_now_state.discovery_timer = xTimerCreate(
@@ -486,5 +531,5 @@ esp_now_trasnsport_interface_t* esp_now_transport_init(const esp_now_transport_c
 
     esp_now_state.initialized = true;
     ESP_LOGI(TAG, "ESP-NOW transport initialized successfully");
-    return &esp_now_state.interface;
+    return ESP_OK;
 }

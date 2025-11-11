@@ -1,3 +1,3 @@
-idf_component_register(SRCS  home_node.c gate_node.c
+idf_component_register(SRCS  message_codec.c
                         INCLUDE_DIRS .
-                        REQUIRES event-adapter)
+                        REQUIRES event-adapter database-interface message-interface)

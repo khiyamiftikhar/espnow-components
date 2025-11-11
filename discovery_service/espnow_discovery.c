@@ -3,7 +3,7 @@
 #include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
+#include "freertos/queue.h"
 #include "esp_log.h"
 #include "discovery_timer.h"
 #include "espnow_discovery.h"
@@ -14,9 +14,18 @@
 #define         DISCOVERY_DURATION          5000    //ms
 #define         DISCOVERY_MAX_DEVICES       5
 #define         DISCOVERY_INTERVAL          500     //ms
-
+#define         QUEUE_MAX_ELEMENTS          5
 static const char* TAG= "discovery";
 
+typedef enum{
+    DISCOVERY_INCOMING_EVENT=0,
+    DISCOVERY_ACK_EVENT,
+}discovery_event_t;
+
+typedef struct{
+    uint8_t mac[6];
+    discovery_event_t event;
+}callback_queue_data_t;
 
 typedef struct {
     uint8_t mac[6];
@@ -35,9 +44,12 @@ static struct{
     uint32_t discovery_interval;             //milliseconds
     uint32_t discovery_start_time;
     TaskHandle_t discovery_task;
+    TaskHandle_t callback_handler_task;     //The task that decouples lower level espnow-comm component
+    QueueHandle_t callback_queue;
     //These are the interfaces that it uses and are injected to it
-    discovery_comm_interface_t* message_interface;
-    discovery_whitelist_interface_t* whitelist;
+    esp_now_transport_discovery_interface_t* discovery_interface;
+    esp_now_peer_manager_interface_t* peer_manager_interface;
+    database_interface_t* database_interface;
     discovery_timer_interface_t* timer;
     //These are the callbacks that are assigned internally and externally to appropriate invokers
     discovery_result_t discovery_result;
@@ -56,17 +68,15 @@ static void incoming_discovery_handler(const uint8_t *mac_addr){
 
 
     //Check if device is in the white list
-    if(discovery_service.whitelist->is_white_listed(mac_addr)==true){
+    if(discovery_service.database_interface->is_white_listed(mac_addr)==true){
         //if yes then add as peer
-        discovery_service.message_interface->add_peer(mac_addr);
+        discovery_service.peer_manager_interface->esp_now_transport_add_peer(mac_addr);
         //And tell the device that its discoveery was  received, so that it stops if desires
-        discovery_service.message_interface->acknowledge_the_discovery(mac_addr);
+        discovery_service.discovery_interface->esp_now_transport_send_discovery_ack(mac_addr);
     }
 
     //if(discovery_service.message_interface->is_peer_exist(mac_addr)!=true)
       //  discovery_service.message_interface.
-
-    
 
 }
 
@@ -78,32 +88,71 @@ static void discovery_acknowledgement_handler(const uint8_t *mac_addr){
 
     memcpy(discovery_service.discovery_result.devices->mac,mac_addr,6);
     discovery_service.discovery_result.result_count++;
-    if(discovery_service.whitelist->is_white_listed(mac_addr)==true){
+    if(discovery_service.database_interface->is_white_listed(mac_addr)==true){
             ESP_LOGI(TAG,"yess added");
-            discovery_service.message_interface->add_peer(mac_addr);
+            discovery_service.peer_manager_interface->esp_now_transport_add_peer(mac_addr);
     }
 
 
 }
 
 
-void discovery_events_handler(discovery_events_t event,uint8_t* src_mac){
 
-    switch(event){
+/// @brief It will handle the updates pushed to queue y the callbacks invoked by the esp-now-comm
+/// @param args 
+static void discovery_callbacks_handler_task(void* args){
 
-        case DISCOVERY_EVENT_DISCOVERY_MESSAGE_ARRIVED:
-                incoming_discovery_handler(src_mac);
-                break;
-        case DISCOVERY_EVENT_DISCOVERY_MESSAGE_ACK_ARRIVED:
-                discovery_acknowledgement_handler(src_mac);           
-                break;
-        default:
-                break;
+    callback_queue_data_t queue_data={0};
 
+    while(1){
+
+
+        if(xQueueReceive(discovery_service.callback_queue,&queue_data,portMAX_DELAY)==pdTRUE)
+
+            switch(queue_data.event){
+                case DISCOVERY_INCOMING_EVENT:
+                    incoming_discovery_handler(queue_data.mac);
+
+                    break; 
+                case DISCOVERY_ACK_EVENT:
+                    discovery_acknowledgement_handler(queue_data.mac);
+                    
+                    break;
+
+            }
     }
 
 }
 
+
+/// @brief It will be invoked by the esp-now-comm component
+/// @param src_mac 
+
+static void discovery_callback_handler(const uint8_t* src_mac){
+
+    callback_queue_data_t queue_data;
+
+    memcpy(queue_data.mac,src_mac,sizeof(queue_data.mac));
+    queue_data.event=DISCOVERY_INCOMING_EVENT;
+
+    xQueueSendFromISR(discovery_service.callback_queue,&queue_data,NULL);
+
+
+}
+
+/// @brief It will be invoked by the esp-now-comm component
+/// @param src_mac 
+static void discovery_ack_callback_handler(const uint8_t* src_mac){
+
+    callback_queue_data_t queue_data;
+
+    memcpy(queue_data.mac,src_mac,sizeof(queue_data.mac));
+    queue_data.event=DISCOVERY_ACK_EVENT;
+
+    xQueueSendFromISR(discovery_service.callback_queue,&queue_data,NULL);
+
+
+}
 
 
 
@@ -171,7 +220,7 @@ void start_discovery(){
 
     memset(&discovery_service.discovery_result,0,sizeof(discovery_result_t));
     
-    if(discovery_service.message_interface!=NULL && discovery_service.timer!=NULL ){
+    if(discovery_service.discovery_interface!=NULL && discovery_service.timer!=NULL ){
         //start discovery
         //discovery_service.message_interface->send_discovery();
         //start timer
@@ -202,7 +251,7 @@ static void discovery_task(void* args){
     while(1){
          if(xTaskNotifyWait(0, 0, &keep_alive, portMAX_DELAY)==pdTRUE){
             if(keep_alive==1)
-                discovery_service.message_interface->send_discovery();
+                discovery_service.discovery_interface->esp_now_transport_send_discovery();
             else{
                 stop_discovery();
                 
@@ -231,27 +280,36 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     discovery_service.timer=&timer_interface->methods;
     timer_interface->callback_handler=timer_elapsed_handler;
 
+    discovery_service.callback_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
+
+    ESP_ERROR_CHECK(discovery_service.callback_queue==NULL);
 
     BaseType_t ret=xTaskCreate(discovery_task,"discovery task",4096,NULL,5,&discovery_service.discovery_task);
 
     ESP_ERROR_CHECK(ret!=1);
 
+    ret=xTaskCreate(discovery_callbacks_handler_task,"callback handler task",4096,NULL,5,&discovery_service.callback_handler_task);
+    ESP_ERROR_CHECK(ret!=1);
+
+    
+    
+
     //Register the discovery completion
     DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL,NULL);
 
-    discovery_service.message_interface=config->discovery;
+    discovery_service.discovery_interface=config->discovery_interface;
     
 
-    discovery_service.whitelist=config->whitelist;
+
+    //Register the callbacks
+    discovery_service.discovery_interface->set_esp_now_device_discovery_cb(discovery_callback_handler);
+    discovery_service.discovery_interface->set_esp_now_device_discovery_ack_cb(discovery_ack_callback_handler);
+
+    discovery_service.peer_manager_interface=config->peer_manager_interface;
+    discovery_service.database_interface=config->database_interface;
     discovery_service.discovery_duration=config->discovery_duration;
     discovery_service.discovery_interval=config->discovery_interval;
-    
-    
-
-    
-    
 
     return ESP_OK;
-
 
 }

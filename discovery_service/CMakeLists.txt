@@ -1,5 +1,5 @@
 idf_component_register(SRCS espnow_discovery.c discovery_timer.c
                         INCLUDE_DIRS .
                         PRIV_REQUIRES esp_timer 
-                        REQUIRES event-adapter
+                        REQUIRES event-adapter database-interface peer-manager-interface discovery-interface
                         )
