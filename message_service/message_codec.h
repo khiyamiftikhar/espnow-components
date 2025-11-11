@@ -55,7 +55,7 @@ esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_typ
 
 
 esp_err_t message_codec_send_status(uint8_t* mac_addr,message_codec_lock_status_t status);
-esp_err_t lock_system_message_codec_init(message_codec_config_t* config);
+esp_err_t message_codec_init(message_codec_config_t* config);
 
 
 
