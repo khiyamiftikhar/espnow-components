@@ -115,7 +115,7 @@ esp_err_t message_codec_send_status(uint8_t* mac_addr,message_codec_lock_status_
  * Handle incoming command messages
  */
 
-static void status_msg_handler(uint8_t* mac_addr,message_codec_lock_status_t cmd){
+static void status_msg_handler(const uint8_t* mac_addr,message_codec_lock_status_t cmd){
 //static void handle_command_message(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     
     MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,(void*)&cmd,sizeof(message_codec_lock_status_t));
@@ -130,7 +130,7 @@ static void status_msg_handler(uint8_t* mac_addr,message_codec_lock_status_t cmd
  * Handle incoming command messages
  */
 
-static void command_msg_handler(uint8_t* mac_addr,message_codec_command_type_t cmd){
+static void command_msg_handler(const uint8_t* mac_addr,message_codec_command_type_t cmd){
 //static void handle_command_message(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     switch (cmd) {
         case MESSAGE_COMMAND_OPEN_LOCK:
@@ -148,7 +148,7 @@ static void command_msg_handler(uint8_t* mac_addr,message_codec_command_type_t c
             break;
             
         case MESSAGE_COMMAND_LOCK_STATUS:
-            MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,NULL,0);
+            MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,(void*)mac_addr,sizeof(uint8_t)*6);
 
             //Get  lock status
             //send lock status
@@ -158,7 +158,7 @@ static void command_msg_handler(uint8_t* mac_addr,message_codec_command_type_t c
             break;
             
         default:
-            ESP_LOGW(TAG, "Unknown command: %d", msg->cmd);
+            ESP_LOGW(TAG, "Unknown command: %d", cmd);
             break;
     }
 }
@@ -186,7 +186,7 @@ static void message_received_handler(const uint8_t *mac_addr, const message_code
             break;
             
         case MSG_TYPE_STATUS:  // Status message
-            status_msg_handler(msg->lock_status);
+            status_msg_handler(mac_addr,msg->lock_status);
             break;
             
         default:
@@ -270,22 +270,28 @@ static void message_sent_callback_handler(const uint8_t *mac_addr, bool success)
 
 
 
-esp_err_t lock_system_message_codec_init(message_codec_config_t* config){
+esp_err_t message_codec_init(message_codec_config_t* config){
 
     if(config==NULL)
         return ESP_FAIL;
     
     message_codec_state.msg_interface=config->msg_interface;
     message_codec_state.database_interface=config->database_interface;
+
+    //Register the callbacks that will be invoked by the esp-now-comm component
+    message_codec_state.msg_interface->set_esp_now_device_data_rcv_cb(message_recevied_callback_handler);
+    message_codec_state.msg_interface->set_esp_now_device_data_sent_cb(message_sent_callback_handler);
+
+    message_codec_state.callback_handler_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
+
+    ESP_ERROR_CHECK(message_codec_state.callback_handler_queue==NULL);
     
-    BaseType_t ret=xTaskCreate(message_callbacks_handler_task,"message task",configMINIMAL_STACK_SIZE,NULL,5,&message_codec_state.callback_handler_task);
+    BaseType_t ret=xTaskCreate(message_callbacks_handler_task,"message task",4096,NULL,5,&message_codec_state.callback_handler_task);
 
     ESP_ERROR_CHECK(ret!=1);
 
     
-    message_codec_state.callback_handler_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
-
-    ESP_ERROR_CHECK(message_codec_state.callback_handler_queue==NULL);
+    
 
     //ESP_LOGI(TAG,"check in gate service init %d",gate_node.list->is_in_whitelist(NULL));
 
