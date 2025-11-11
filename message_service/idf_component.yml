@@ -7,7 +7,7 @@ dependencies:
     path: database-interface
     version: development/layered-architecure
   message-interface:
-    path: https://github.com/khiyamiftikhar/espnow-components
+    git: https://github.com/khiyamiftikhar/espnow-components
     path: message-interface
     #version: development/layered-architecure    #git: https://github.com/khiyamiftikhar/espnow-components
     #path: database-interface
