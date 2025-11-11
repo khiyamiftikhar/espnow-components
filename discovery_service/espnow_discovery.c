@@ -280,6 +280,9 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     discovery_service.timer=&timer_interface->methods;
     timer_interface->callback_handler=timer_elapsed_handler;
 
+    discovery_service.callback_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
+
+    ESP_ERROR_CHECK(discovery_service.callback_queue==NULL);
 
     BaseType_t ret=xTaskCreate(discovery_task,"discovery task",4096,NULL,5,&discovery_service.discovery_task);
 
@@ -288,9 +291,8 @@ esp_err_t discovery_service_init(config_espnow_discovery* config){
     ret=xTaskCreate(discovery_callbacks_handler_task,"callback handler task",4096,NULL,5,&discovery_service.callback_handler_task);
     ESP_ERROR_CHECK(ret!=1);
 
-    discovery_service.callback_queue=xQueueCreate(QUEUE_MAX_ELEMENTS,sizeof(callback_queue_data_t));
-
-    ESP_ERROR_CHECK(discovery_service.callback_queue==NULL);
+    
+    
 
     //Register the discovery completion
     DISCOVERY_SERVICE_register_event(DISCOVERY_EVENT_DISCOVERY_COMPLETE,NULL,NULL);
