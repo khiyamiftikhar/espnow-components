@@ -1,5 +1,5 @@
-#ifndef ESPNOW_MSG_INTERFACE_H
-#define ESPNOW_MSG_INTERFACE_H
+#ifndef MESSAGE_INTERFACE_H
+#define MESSAGE_INTERFACE_H
 
 
 #include "stdint.h"
