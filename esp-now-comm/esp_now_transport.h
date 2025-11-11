@@ -36,7 +36,7 @@
 typedef struct {
 
     esp_now_transport_discovery_interface_t discovery_interface;
-    esp_now_peer_manager_interface_t common_interface;
+    esp_now_peer_manager_interface_t peer_manager_interface;
 
 }esp_now_trasnsport_discovery_package_t;
 
@@ -46,8 +46,7 @@ typedef struct {
 typedef struct {
 
     esp_now_transport_msg_interface_t msg_interface;
-    esp_now_peer_manager_interface_t common_interface;
-
+    
 }esp_now_trasnsport_msg_package_t;
 
 

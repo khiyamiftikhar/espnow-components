@@ -490,15 +490,12 @@ esp_err_t esp_now_transport_init(const esp_now_transport_config_t *config)
     
     //esp_now_state.discovery_interval_ms = config->discovery_interval_ms;
     //esp_now_state.interface.callbacks = config->callbacks;
-    esp_now_state.msg.common_interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
+    
+    
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
     //esp_now_state.interface.esp_now_transport_deinit=esp_now_transport_deinit;
-    esp_now_state.msg.common_interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
-    esp_now_state.msg.common_interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
-
-    esp_now_state.discovery.common_interface.esp_now_transport_add_peer=esp_now_transport_add_peer;
-    //esp_now_state.interface.esp_now_transport_deinit=esp_now_transport_deinit;
-    esp_now_state.discovery.common_interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
-    esp_now_state.discovery.common_interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_is_peer_exist=esp_now_transport_is_peer_exist;
+    esp_now_state.discovery.peer_manager_interface.esp_now_transport_remove_peer=esp_now_transport_remove_peer;
 
     esp_now_state.msg.msg_interface.esp_now_transport_send_data=esp_now_transport_send_data;
     
