@@ -19,7 +19,8 @@ DEFINE_EVENT_ADAPTER(MESSAGE_CODEC);
 
 typedef enum{
     MSG_TYPE_COMMAD,
-    MSG_TYPE_STATUS
+    MSG_TYPE_STATUS,
+    MSG_TYPE_ACK,       //To acknowledege a received message
 }message_codec_message_type_t;
 
 
@@ -63,6 +64,32 @@ static struct {
 
 
 
+
+/// @brief Sent on each command message arrived
+/// @param mac_addr 
+/// @param command 
+/// @return 
+static esp_err_t message_codec_send_ack(uint8_t* mac_addr,void* context){
+
+
+
+    message_codec_message_t response_msg = {
+        .msg_type = MSG_TYPE_ACK,
+        .context=context;
+    };
+    
+    esp_err_t result = message_codec_state.msg_interface->esp_now_transport_send_data(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
+    
+    if (result == ESP_OK) {
+        ESP_LOGI(TAG, "Status response sent successfully: %d", result);
+    } else {
+        ESP_LOGE(TAG, "Failed to send status response: %s", esp_err_to_name(result));
+    }
+
+    return result;
+
+
+}
 
 
 esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_type_t command){
@@ -130,13 +157,15 @@ static void status_msg_handler(const uint8_t* mac_addr,message_codec_lock_status
  * Handle incoming command messages
  */
 
-static void command_msg_handler(const uint8_t* mac_addr,message_codec_command_type_t cmd){
+static void command_msg_handler(const uint8_t* mac_addr,message_codec_command_type_t cmd,void* context){
 //static void handle_command_message(const uint8_t *mac_addr, const message_codec_message_t *msg) {
     switch (cmd) {
         case MESSAGE_COMMAND_OPEN_LOCK:
 
             ESP_LOGI(TAG, "Command: Open lock");
             MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_OPEN_GATE,NULL,0);
+            //Send back the ack
+            message_codec_send_ack(mac_addr,context);
             
             
             break;
@@ -144,6 +173,7 @@ static void command_msg_handler(const uint8_t* mac_addr,message_codec_command_ty
         case MESSAGE_COMMAND_CLOSE_LOCK:
             ESP_LOGI(TAG, "Command: Close lock");
             MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_CLOSE_GATE,NULL,0);
+            message_codec_send_ack(mac_addr,context);
             
             break;
             
@@ -161,6 +191,18 @@ static void command_msg_handler(const uint8_t* mac_addr,message_codec_command_ty
             ESP_LOGW(TAG, "Unknown command: %d", cmd);
             break;
     }
+}
+
+
+
+/// @brief Handle the incoming Ack
+/// @param mac_addr 
+/// @param cmd 
+/// @param context 
+static void ack_msg_handler(const uint8_t* mac_addr,message_codec_command_type_t cmd,void* context){
+
+    MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,(void*)context,sizeof(void*));
+
 }
 
 
@@ -183,11 +225,16 @@ static void message_received_handler(const uint8_t *mac_addr, const message_code
         case MSG_TYPE_COMMAD:  // Command message
 
             command_msg_handler(mac_addr, msg->cmd);
+            
+
             break;
             
         case MSG_TYPE_STATUS:  // Status message
             status_msg_handler(mac_addr,msg->lock_status);
             break;
+        
+        case MSG_TYPE_ACK:
+            ack_msg_handler(mac_addr,msg->context);     //The context arrived back which is sender http req
             
         default:
             ESP_LOGW(TAG, "Unknown message type: %d", msg->msg_type);
@@ -300,6 +347,7 @@ esp_err_t message_codec_init(message_codec_config_t* config){
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_CLOSE_GATE,NULL,NULL);
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,NULL,NULL);
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,NULL,NULL);
+    MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_ACK_ARRIVED,NULL,NULL);
     
 
     
