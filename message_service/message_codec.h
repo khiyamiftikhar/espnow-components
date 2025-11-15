@@ -43,7 +43,7 @@ typedef struct{
     void* context;      ///Passed and now returned this way (the httpd_req_t)
     bool success;
 
-}message_send_ack_t
+}message_send_ack_t;
 
 typedef struct{
     esp_now_transport_msg_interface_t* msg_interface;
