@@ -8,6 +8,7 @@
 #include "esp_mac.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "freertos/timers.h"
 #include "string.h"
 
@@ -15,7 +16,7 @@ static const char *TAG = "ESP_NOW_TRANSPORT";
 
 // Broadcast MAC address for discovery
 static const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
+#define     MAX_QUEUE_LENGTH            10
 
 //Handles are used in this source because dynamic unreg has to be done. Otherwise in other source NULL is passed
 
@@ -46,10 +47,24 @@ typedef struct {
 } esp_now_transport_callbacks_t;
 
 
+
+//To recognize who called the send method. on send callback it will be invoked
+//and dependeing upon the src the cb will be selected  whether discovery or msg service
+typedef enum{
+
+    SRC_DISCOVERY_SERVICE,
+    SRC_MESSAGE_SERVICE
+}sending_service_t;
+
+typedef struct{
+    sending_service_t sender;
+
+}esp_now_transport_queue_data_t;
+
 static struct {
     bool initialized;
     esp_now_transport_callbacks_t callbacks;
-    
+    QueueHandle_t sender_track_queue;   //To track who sent the msg, discovery or message service
     //esp_now_transport_callbacks_t callbacks;
     //TimerHandle_t discovery_timer;
     //bool discovery_active;
@@ -103,6 +118,12 @@ static esp_err_t esp_now_transport_send_discovery(void)
         return ESP_OK;
     }*/
 
+    esp_now_transport_queue_data_t queue_data;
+    queue_data.sender=SRC_DISCOVERY_SERVICE;
+
+    if(xQueueSend(esp_now_state.sender_track_queue,&queue_data,0)!=pdTRUE)
+        return ESP_FAIL;
+
     esp_now_internal_msg_t msg;
     msg.type = MSG_TYPE_DISCOVERY_BROADCAST;
     esp_wifi_get_mac(ESP_IF_WIFI_STA, msg.src_mac);
@@ -141,6 +162,12 @@ static esp_err_t esp_now_transport_send_data(const uint8_t *mac_addr, const uint
         
         return ESP_ERR_ESPNOW_NOT_FOUND;
     }
+
+    esp_now_transport_queue_data_t queue_data;
+    queue_data.sender=SRC_MESSAGE_SERVICE;
+
+    if(xQueueSend(esp_now_state.sender_track_queue,&queue_data,0)!=pdTRUE)
+        return ESP_FAIL;
 
     // Use static allocation for message
     uint8_t msg_buffer[sizeof(esp_now_internal_msg_t) + ESP_NOW_TRANSPORT_MAX_DATA_LEN];
@@ -203,18 +230,30 @@ bool esp_now_transport_is_peer_exist(const uint8_t *mac_addr)
 static esp_err_t esp_now_transport_send_discovery_ack(const uint8_t* mac){
 
 // Send acknowledgment (add peer temporarily just for this response)
+        esp_err_t ret=0;
         esp_now_internal_msg_t ack_msg = {0};
         ack_msg.type = MSG_TYPE_DISCOVERY_ACK;
         esp_wifi_get_mac(ESP_IF_WIFI_STA, ack_msg.src_mac);
         ack_msg.payload_len = 0;
         ack_msg.crc = 0;
 
+        
+        esp_now_transport_queue_data_t queue_data;
+        queue_data.sender=SRC_DISCOVERY_SERVICE;
+        if(xQueueSend(esp_now_state.sender_track_queue,&queue_data,0)!=pdTRUE)
+            return ESP_FAIL;
+    
+
         // Temporarily add peer to send ACK, then let application decide
         bool peer_existed = esp_now_is_peer_exist(mac);
         if (!peer_existed) {
-            esp_now_transport_add_peer(mac);
+            ret=esp_now_transport_add_peer(mac);
         }
-        esp_now_send(mac, (uint8_t*)&ack_msg, sizeof(ack_msg));
+        if(ret==ESP_OK){
+            ret=esp_now_send(mac, (uint8_t*)&ack_msg, sizeof(ack_msg));
+        }
+
+        
         if (!peer_existed) {
             esp_now_transport_remove_peer(mac);
         }
@@ -313,14 +352,25 @@ static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
         ESP_LOGI(TAG, "Send failed to " MACSTR"", MAC2STR(mac_addr));
     }
 
+
+
     // Notify application if callback is set
     
-    espnow_msg_sent_status_t msg;
-    msg.success=success;
-    memcpy(msg.dest_mac,mac_addr,sizeof(msg.dest_mac));
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if(memcmp(mac_addr,BROADCAST_MAC,sizeof(uint8_t)*6)!=0){
-        ESP_LOGI(TAG,"unicast ack send");
+    esp_now_transport_queue_data_t queue_data;
+    // MUST use FromISR version
+    BaseType_t ret= xQueueReceiveFromISR(esp_now_state.sender_track_queue,
+                         &queue_data,
+                         &xHigherPriorityTaskWoken);
+
+    
+    if(queue_data.sender==SRC_DISCOVERY_SERVICE){
+        ESP_LOGI(TAG,"discovery send ack");
+
+    }
+    else {
+        ESP_LOGI(TAG,"msg send ack");
         if (esp_now_state.callbacks.msg_send_cb) {
                     esp_now_state.callbacks.msg_send_cb(mac_addr, status == ESP_NOW_SEND_SUCCESS);
                 }
@@ -510,7 +560,10 @@ esp_err_t esp_now_transport_init(const esp_now_transport_config_t *config)
     esp_now_state.discovery.discovery_interface.set_esp_now_device_discovery_cb=esp_now_transport_set_device_discovered_cb;
     //esp_now_state.interface.esp_now_transport_stop_discovery=esp_now_transport_stop_discovery;
 
+    esp_now_state.sender_track_queue=xQueueCreate(MAX_QUEUE_LENGTH,sizeof(esp_now_transport_queue_data_t));
 
+    if(esp_now_state.sender_track_queue==NULL)
+        return ESP_FAIL;
     //Earlier this was accomplised using callbacks
     //Now this source posts events
 
