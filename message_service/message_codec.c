@@ -57,6 +57,7 @@ static struct {
     database_interface_t* database_interface;
     TaskHandle_t callback_handler_task;
     QueueHandle_t callback_handler_queue;
+    QueueHandle_t context_queue;            //To put and get contexts in order
     
 }message_codec_state={0};
 
@@ -65,7 +66,7 @@ static struct {
 
 
 
-esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_type_t command){
+esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_type_t command,void* context){
 
 
 
@@ -74,7 +75,15 @@ esp_err_t message_codec_send_command(uint8_t* mac_addr,message_codec_command_typ
         .cmd = command,  // Original command that triggered this response
     };
     
+    BaseType_t err=xQueueSend(message_codec_state.context_queue,&context,0);
+
+    //For example if queue is  full
+    if(err!=pdTRUE)
+        return ESP_FAIL;
+
     esp_err_t result = message_codec_state.msg_interface->esp_now_transport_send_data(mac_addr, (uint8_t *)&response_msg, sizeof(response_msg));
+
+
     
     if (result == ESP_OK) {
         ESP_LOGI(TAG, "Status response sent successfully: %d", result);
@@ -198,7 +207,20 @@ static void message_received_handler(const uint8_t *mac_addr, const message_code
 
 static void message_sent_handler(uint8_t* mac,bool success){
 
-    ESP_LOGI(TAG,",message sent success");
+
+    void* context=NULL;
+    message_send_ack_t send_ack;
+    //Retreive in order
+
+    //ESP_LOGI(TAG,"send success after task %d",success)
+    xQueueReceive(message_codec_state.context_queue,&context,portMAX_DELAY);
+    send_ack.context=context;
+    send_ack.success=success;
+
+    MESSAGE_CODEC_post_event(MESSAGE_SERVICE_ROUTINE_EVENT_SEND_STATUS,&send_ack,sizeof(send_ack));
+
+    
+    //ESP_LOGI(TAG,",message sent callback posted");
 }
 
 
@@ -261,6 +283,7 @@ static void message_sent_callback_handler(const uint8_t *mac_addr, bool success)
 
     queue_data.type=MSG_SENT;
     memcpy(queue_data.mac,mac_addr,sizeof(queue_data.mac));
+    //ESP_LOGI(TAG,"send success in cb %d",success)
     queue_data.success=success;
     xQueueSendFromISR(message_codec_state.callback_handler_queue,&queue_data,NULL);
 
@@ -290,7 +313,7 @@ esp_err_t message_codec_init(message_codec_config_t* config){
 
     ESP_ERROR_CHECK(ret!=1);
 
-    
+    message_codec_state.context_queue = xQueueCreate(10, sizeof(void*));   
     
 
     //ESP_LOGI(TAG,"check in gate service init %d",gate_node.list->is_in_whitelist(NULL));
@@ -300,6 +323,7 @@ esp_err_t message_codec_init(message_codec_config_t* config){
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_CLOSE_GATE,NULL,NULL);
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_COMMAND_SEND_GATE_STATUS,NULL,NULL);
     MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_GATE_STATUS_ARRIVED,NULL,NULL);
+    MESSAGE_CODEC_register_event(MESSAGE_SERVICE_ROUTINE_EVENT_SEND_STATUS,NULL,NULL);
     
 
     
