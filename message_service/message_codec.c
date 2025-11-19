@@ -212,8 +212,8 @@ static void message_sent_handler(uint8_t* mac,bool success){
     message_send_ack_t send_ack;
     //Retreive in order
 
-    //ESP_LOGI(TAG,"send success after task %d",success)
-    xQueueReceive(message_codec_state.context_queue,&context,portMAX_DELAY);
+    ESP_LOGI(TAG,"send success after task %d",success);
+    xQueueReceive(message_codec_state.context_queue,&context,0);
     send_ack.context=context;
     send_ack.success=success;
 
@@ -283,7 +283,7 @@ static void message_sent_callback_handler(const uint8_t *mac_addr, bool success)
 
     queue_data.type=MSG_SENT;
     memcpy(queue_data.mac,mac_addr,sizeof(queue_data.mac));
-    //ESP_LOGI(TAG,"send success in cb %d",success)
+    ESP_LOGI(TAG,"send success in cb %d",success);
     queue_data.success=success;
     xQueueSendFromISR(message_codec_state.callback_handler_queue,&queue_data,NULL);
 
