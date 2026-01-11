@@ -342,14 +342,15 @@ static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
     }
 }
 
-static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
+static void esp_now_send_cb(const wifi_tx_info_t *tx_info,
+                     esp_now_send_status_t status){
+    const uint8_t *dest_mac = tx_info->des_addr;
     bool success=false;
     if (status == ESP_NOW_SEND_SUCCESS) {
         success=true;
-        ESP_LOGI(TAG, "Send success to " MACSTR "", MAC2STR(mac_addr));
+        ESP_LOGI(TAG, "Send success to " MACSTR "", MAC2STR(dest_mac));
     } else {
-        ESP_LOGI(TAG, "Send failed to " MACSTR"", MAC2STR(mac_addr));
+        ESP_LOGI(TAG, "Send failed to " MACSTR"", MAC2STR(dest_mac));
     }
 
 
@@ -372,7 +373,7 @@ static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
     else {
         ESP_LOGI(TAG,"msg send ack");
         if (esp_now_state.callbacks.msg_send_cb) {
-                    esp_now_state.callbacks.msg_send_cb(mac_addr, status == ESP_NOW_SEND_SUCCESS);
+                    esp_now_state.callbacks.msg_send_cb(dest_mac, status == ESP_NOW_SEND_SUCCESS);
                 }
 
     }
