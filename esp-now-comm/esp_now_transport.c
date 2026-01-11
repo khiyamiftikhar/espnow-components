@@ -79,7 +79,8 @@ static struct {
 
 // Forward declarations
 static void esp_now_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
-static void esp_now_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status);
+static void esp_now_send_cb(const wifi_tx_info_t *tx_info,
+                     esp_now_send_status_t status);
 //static void discovery_timer_callback(TimerHandle_t timer);
 
 
