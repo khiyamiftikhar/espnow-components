@@ -19,7 +19,7 @@ static void timer_callback(){
 
 void setUp(){
 
-    timer=timer_create(2000);
+    timer=discovery_timer_create(2000);
     timer->discovery_timer_callback=timer_callback;
 
     

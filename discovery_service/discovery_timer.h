@@ -26,5 +26,5 @@ typedef struct{
 
 
 
-discovery_timer_implementation_t* timer_create(uint32_t duration);
+discovery_timer_implementation_t* discovery_timer_create(uint32_t duration);
 #endif

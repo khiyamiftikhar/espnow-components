@@ -55,7 +55,7 @@ static uint32_t get_current_time(){
 
 
 
-discovery_timer_implementation_t* timer_create(uint32_t duration_ms){
+discovery_timer_implementation_t* discovery_timer_create(uint32_t duration_ms){
 
     discovery_timer.timer = xTimerCreate(
         "discovery_timer",
